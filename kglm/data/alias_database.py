@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Set, Tuple
 
 from allennlp.common.tqdm import Tqdm
 from allennlp.data import Vocabulary
-from allennlp.data.tokenizers import Token, Tokenizer, SpacyTokenizer
+from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
 import numpy as np
 import torch
 
@@ -47,7 +47,7 @@ class AliasDatabase:
         # TODO: Pretokenize the database to match the tokenization of the data itself. This
         # shouldn't be an issue ATM since I believe WordTokenizer() also uses SpaCy. But better to
         # air on the side of caution...
-        tokenizer = SpacyTokenizer()
+        tokenizer = WordTokenizer()
         token_lookup: Dict[str, AliasList] = {}
         id_map_lookup: Dict[str, Dict[str, int]] = {}
         id_array_lookup: Dict[str, np.ndarray] = {}
