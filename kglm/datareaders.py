@@ -4,7 +4,7 @@
 import json
 import numpy as np
 from typing import Dict, Iterable
-from overrides import overrides
+# from overrides import overrides
 
 # AllenNLP Imports
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer

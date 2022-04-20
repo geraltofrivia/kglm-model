@@ -52,3 +52,8 @@ class SequentialArrayField(ArrayField, SequenceField):
         # same padding_value in the padded ArrayFields
         shape = tuple(0 for _ in self.array.shape)
         return SequentialArrayField(np.empty(shape), dtype=self._dtype, padding_value=self.padding_value)
+
+
+if __name__ == "__main__":
+
+    print('potato')
