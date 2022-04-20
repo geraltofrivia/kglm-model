@@ -1,0 +1,3 @@
+class ConfigurationError(Exception):
+    """ To be raised when we get weird config combos"""
+    ...

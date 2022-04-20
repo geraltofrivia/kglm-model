@@ -1,29 +1,47 @@
-from collections import defaultdict
-import logging
+import torch
 import pickle
-from typing import Any, Dict, List, Set, Tuple
+import logging
+import numpy as np
+from tqdm.auto import tqdm
+from collections import defaultdict
+from typing import Dict, Set, Any, List, Tuple
 
-from allennlp.common.tqdm import Tqdm
+# Allennlp imports
+# TODO: get rid of it later.
 from allennlp.data import Vocabulary
 from allennlp.data.tokenizers import Token, Tokenizer, WordTokenizer
-import numpy as np
-import torch
+
+
+# Local Imports
+try:
+    import _pathfix
+except ImportError:
+    from . import _pathfix
+from utils.text import tokenize_to_string
+from config import MAX_ALIASES, MAX_TOKENS
+
+
 
 logger = logging.getLogger(__name__)
-
-
 AliasList = List[List[str]]
-MAX_ALIASES = 4
-MAX_TOKENS = 8
 
+"""
+    _token_lookup is a dict like 
+    {'Q31': [['Belgium'], ['Kingdom', 'of', 'Belgium'], ['be'], ['🇧', '🇪']],
+     'Q23': [['George', 'Washington'],
+      ['Washington'],
+      ['President', 'Washington'],
+      ['G.', 'Washington']], ... }
 
-def tokenize_to_string(text: str, tokenizer: Tokenizer) -> List[str]:
-    """Sigh"""
-    return [token.text for token in tokenizer.tokenize(text)]
+      To access it do:
+      ad = ds._alias_database.load("data/linked-wikitext-2/alias.pkl")
+      ad._token_lookup
+"""
 
 
 class AliasDatabase:
     """A Database of Aliases"""
+
     def __init__(self,
                  token_lookup: Dict[str, AliasList],
                  id_map_lookup: Dict[str, Dict[str, int]],
@@ -57,7 +75,7 @@ class AliasDatabase:
         with open(path, 'rb') as f:
             alias_lookup = pickle.load(f)
 
-        for entity, aliases in Tqdm.tqdm(alias_lookup.items()):
+        for entity, aliases in tqdm(alias_lookup.items()):
             # Reverse token to potential entity lookup
             for alias in aliases:
                 for token in tokenize_to_string(alias, tokenizer):
@@ -137,7 +155,8 @@ class AliasDatabase:
             self._global_id_lookup.append(global_id_tensor)
 
             # Convert array of local alias token indices into a tensor
-            local_id_tensor = torch.tensor(self._id_array_lookup[entity], requires_grad=False)  # pylint: disable=not-callable
+            local_id_tensor = torch.tensor(self._id_array_lookup[entity],
+                                           requires_grad=False)  # pylint: disable=not-callable
             self._local_id_lookup.append(local_id_tensor)
 
         # Build the tensorized token -> potential entities lookup.
@@ -151,9 +170,10 @@ class AliasDatabase:
             except KeyError:
                 self._token_id_to_entity_id_lookup.append(None)
             else:
-                potential_entity_ids = torch.tensor([vocab.get_token_index(str(x), 'entity_ids') for x in potential_entities],
-                                                    dtype=torch.int64,
-                                                    requires_grad=False)
+                potential_entity_ids = torch.tensor(
+                    [vocab.get_token_index(str(x), 'entity_ids') for x in potential_entities],
+                    dtype=torch.int64,
+                    requires_grad=False)
                 self._token_id_to_entity_id_lookup.append(potential_entity_ids)
         self._num_entities = vocab.get_vocab_size('entity_ids')  # Needed to get one-hot vector length
 
@@ -194,3 +214,11 @@ class AliasDatabase:
                 potential_entities = self._token_id_to_entity_id_lookup[token_id]
                 output[i, j, potential_entities] = 1
         return output
+
+if __name__ == '__main__':
+
+    # Try to init an instance and see what happens
+    ad = AliasDatabase.load(path='data/linked-wikitext-2/alias.pkl')
+    print(len(ad._token_lookup))
+
+    print('potato')
