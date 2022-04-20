@@ -10,14 +10,15 @@ from allennlp.training.metrics import Metric
 from overrides import overrides
 import torch
 import torch.nn.functional as F
+from typing import Any
 
 # Local imports
 try:
     import _pathfix
 except ImportError:
-    from . import _pathfix
+    from kglm import _pathfix
 
-from kglm.data.extended_vocabulary import ExtendedVocabulary
+# from kglm.data.extended_vocabulary import ExtendedVocabulary
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class UnknownPenalizedPerplexity(Metric):
         Out of vocabulary token. AllenNLP's ``DEFAULT_OOV_TOKEN`` is used by default.
     """
     def __init__(self,
-                 vocabulary: ExtendedVocabulary,
+                 vocabulary: Any, # TODO: replace hint by extendedvocabulary
                  namespace: str = 'tokens',
                  oov_token: str = DEFAULT_OOV_TOKEN) -> None:
         # Compute the penalty weight applied to p(<unk>).
@@ -141,7 +142,7 @@ class UnknownPenalizedPerplexity(Metric):
         self._total_count = 0.0
 
 
-@Metric.register('ppl')
+# @Metric.register('ppl')
 class Ppl(Metric):
 
     def __init__(self):

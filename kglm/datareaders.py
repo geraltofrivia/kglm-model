@@ -7,8 +7,7 @@ from typing import Dict, Iterable
 # from overrides import overrides
 
 # AllenNLP Imports
-from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
-from allennlp.data.fields import ListField, MetadataField, TextField
+from allennlp.data.token_indexers import TokenIndexer
 from allennlp.data.instance import Instance
 
 # Local imports
@@ -18,8 +17,6 @@ except ImportError:
     from . import _pathfix
 from utils.alias import AliasDatabase
 from utils.exceptions import ConfigurationError
-from utils.text import tokenize
-from utils.allen import SequentialArrayField
 from config import DEFAULT_PADDING_TOKEN, MAX_PARENTS, LOCATIONS as LOC
 
 

@@ -20,8 +20,8 @@ import sys
 from pathlib import Path
 
 root_dir: str = os.getcwd()
-if not root_dir.endswith("src"):
-    root_dir = Path(root_dir) / 'src'
+if not root_dir.endswith("kglm"):
+    root_dir = Path(root_dir) / 'kglm'
 sys.path.append(str(root_dir))
 
 

@@ -8,17 +8,18 @@ import math
 from typing import Any, Dict, List, Optional
 
 # AllenNLP imports
-from allennlp.data.vocabulary import Vocabulary, DEFAULT_OOV_TOKEN
-from allennlp.modules import TextFieldEmbedder, Seq2SeqEncoder
+from allennlp.data.vocabulary import Vocabulary
+from allennlp.modules import Seq2SeqEncoder
 from allennlp.models import Model
 from allennlp.nn import InitializerApplicator
 from allennlp.nn.util import (get_text_field_mask, masked_log_softmax, masked_softmax,
     sequence_cross_entropy_with_logits)
-from allennlp.training.metrics import Average, CategoricalAccuracy, F1Measure, SequenceAccuracy
+from allennlp.training.metrics import Average, CategoricalAccuracy, F1Measure
 
 from overrides import overrides
 import torch
 import torch.nn.functional as F
+from torch.nn import Embedding
 
 # Local imports
 try:
@@ -28,19 +29,22 @@ except ImportError:
 
 from utils.alias import AliasDatabase
 
-from utils.modules import (
-    embedded_dropout, LockedDropout, WeightDrop, KnowledgeGraphLookup, RecentEntities)
+from utils.modules.embed_regularize import embedded_dropout
+from utils.modules.locked_dropout import LockedDropout
+from utils.modules.weight_drop import WeightDrop
+from utils.modules.knowledge_graph_lookup import KnowledgeGraphLookup
+from utils.modules.recent_entities import RecentEntities
 
-from kglm.modules import (
-    embedded_dropout, LockedDropout, WeightDrop, KnowledgeGraphLookup, RecentEntities)
+from utils.nn.util import nested_enumerate, parallel_sample
 
-from kglm.nn.util import nested_enumerate, parallel_sample
-from kglm.training.metrics import Ppl
+from training.metrics.perplexity import Ppl
 
 logger = logging.getLogger(__name__)
 
+# allennlp vocabulary smth
+DEFAULT_OOV_TOKEN = "@@UNKNOWN@@"
 
-@Model.register('kglm')
+# @Model.register('kglm')
 class Kglm(Model):
     """
     Knowledge graph language model.
@@ -52,9 +56,12 @@ class Kglm(Model):
     """
     def __init__(self,
                  vocab: Vocabulary,
-                 token_embedder: TextFieldEmbedder,
-                 entity_embedder: TextFieldEmbedder,
-                 relation_embedder: TextFieldEmbedder,
+                 # token_embedder: TextFieldEmbedder,
+                 # entity_embedder: TextFieldEmbedder,
+                 # relation_embedder: TextFieldEmbedder,
+                 token_embedder: Embedding,
+                 entity_embedder: Embedding,
+                 relation_embedder: Embedding,
                  alias_encoder: Seq2SeqEncoder,
                  knowledge_graph_path: str,
                  use_shortlist: bool,
