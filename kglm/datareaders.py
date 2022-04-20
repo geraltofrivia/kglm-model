@@ -1,10 +1,39 @@
 """
     Here we keep all data readers
 """
-from typing import Dict
+import json
+import numpy as np
+from typing import Dict, Iterable
+from overrides import overrides
 
+# AllenNLP Imports
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
+from allennlp.data.fields import ListField, MetadataField, TextField
+from allennlp.data.instance import Instance
+
+# Local imports
+try:
+    import _pathfix
+except ImportError:
+    from . import _pathfix
+from utils.alias import AliasDatabase
 from utils.exceptions import ConfigurationError
+from utils.text import tokenize
+from utils.allen import SequentialArrayField
+from config import DEFAULT_PADDING_TOKEN, MAX_PARENTS, LOCATIONS as LOC
+
+
+def normalize_entity_id(raw_entity_id: str) -> str:
+    if raw_entity_id[0] == 'T':
+        entity_id = '@@DATE@@'
+    elif raw_entity_id[0] == 'V':
+        entity_id = '@@QUANTITY@@'
+    elif raw_entity_id[0] in ['P', 'Q']:
+        entity_id = raw_entity_id
+    else:
+        entity_id = None
+    return entity_id
+
 
 class EnhancedWikitextKglmReader:
 
@@ -26,7 +55,7 @@ class EnhancedWikitextKglmReader:
             instances are suitable for the discriminative or generative version of
             the model.
         """
-        super().__init__(lazy)
+        # super().__init__(lazy)
         if mode not in {"discriminative", "generative"}:
             raise ConfigurationError("Got mode {}, expected one of 'generative'"
                                      "or 'discriminative'".format(mode))
@@ -34,7 +63,8 @@ class EnhancedWikitextKglmReader:
 
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
         self._entity_indexers = entity_indexers or {'entity_ids': SingleIdTokenIndexer(namespace='entity_ids')}
-        self._raw_entity_indexers = raw_entity_indexers or {'raw_entity_ids': SingleIdTokenIndexer(namespace='raw_entity_ids')}
+        self._raw_entity_indexers = raw_entity_indexers or {
+            'raw_entity_ids': SingleIdTokenIndexer(namespace='raw_entity_ids')}
         self._relation_indexers = relation_indexers or {'relations': SingleIdTokenIndexer(namespace='relations')}
         if 'tokens' not in self._token_indexers or \
                 not isinstance(self._token_indexers['tokens'], SingleIdTokenIndexer):
@@ -54,7 +84,7 @@ class EnhancedWikitextKglmReader:
                                      "a 'single_id' token indexer called 'relations'.")
         self._alias_database = AliasDatabase.load(path=alias_database_path)
 
-    @overrides
+    # @overrides
     def _read(self, file_path: str) -> Iterable[Instance]:
         with open(file_path, 'r') as f:
             for line in f:
@@ -110,7 +140,7 @@ class EnhancedWikitextKglmReader:
                         relation = annotation['relation']
                         new_entity = relation == ['@@NEW@@']
 
-                        # If neccessary, update the shortlist. Obtain the index of the entity identifier in
+                        # If necessary, update the shortlist. Obtain the index of the entity identifier in
                         # the shortlist.
                         if entity_id not in reverse_shortlist:
                             reverse_shortlist[entity_id] = len(reverse_shortlist)
@@ -124,22 +154,23 @@ class EnhancedWikitextKglmReader:
                         mode_offset = -1 if self._mode == "generative" else 0
                         span = annotation['span']
                         for i in range(*span):
-                            raw_entity_ids[i+mode_offset] = raw_entity_id
-                            entity_ids[i+mode_offset] = entity_id
-                            mention_type[i+mode_offset] = 3
+                            raw_entity_ids[i + mode_offset] = raw_entity_id
+                            entity_ids[i + mode_offset] = entity_id
+                            mention_type[i + mode_offset] = 3
                             if new_entity:
-                                shortlist_inds[i+mode_offset] = shortlist_ind
+                                shortlist_inds[i + mode_offset] = shortlist_ind
                             else:
-                                relations[i+mode_offset] = relation[:MAX_PARENTS]
-                                parent_ids[i+mode_offset] = parent_id[:MAX_PARENTS]
+                                relations[i + mode_offset] = relation[:MAX_PARENTS]
+                                parent_ids[i + mode_offset] = parent_id[:MAX_PARENTS]
                             if self._mode == "generative":
-                                alias_copy_inds[i+mode_offset] = self._alias_database.token_to_uid(raw_entity_id, tokens[i])
+                                alias_copy_inds[i + mode_offset] = self._alias_database.token_to_uid(raw_entity_id,
+                                                                                                     tokens[i])
                         # Now put in proper mention type for first token
                         start = annotation['span'][0]
                         if new_entity:
-                            mention_type[start+mode_offset] = 1
+                            mention_type[start + mode_offset] = 1
                         else:
-                            mention_type[start+mode_offset] = 2
+                            mention_type[start + mode_offset] = 2
 
                 yield self.text_to_instance(source,
                                             target,
@@ -153,7 +184,8 @@ class EnhancedWikitextKglmReader:
                                             mention_type,
                                             alias_copy_inds)
 
-    @overrides
+    # noinspection PyTypeChecker
+    # @overrides
     def text_to_instance(self,
                          source,
                          target=None,
@@ -172,26 +204,26 @@ class EnhancedWikitextKglmReader:
         }
         fields = {
             'metadata': MetadataField(metadata),
-            'source': TextField(_tokenize(source), self._token_indexers),
+            'source': TextField(tokenize(source), self._token_indexers),
         }
 
         if target is not None:
-            fields['target'] = TextField(_tokenize(target), self._token_indexers)
+            fields['target'] = TextField(tokenize(target), self._token_indexers)
             metadata['target_tokens'] = target
         if shortlist is not None:
-            fields['shortlist'] = TextField(_tokenize(shortlist), self._entity_indexers)
+            fields['shortlist'] = TextField(tokenize(shortlist), self._entity_indexers)
         if raw_entity_ids is not None:
-            fields['raw_entity_ids'] = TextField(_tokenize(raw_entity_ids), self._raw_entity_indexers)
+            fields['raw_entity_ids'] = TextField(tokenize(raw_entity_ids), self._raw_entity_indexers)
         if entity_ids is not None:
-            fields['entity_ids'] = TextField(_tokenize(entity_ids), self._entity_indexers)
+            fields['entity_ids'] = TextField(tokenize(entity_ids), self._entity_indexers)
         if parent_ids is not None:
             fields['parent_ids'] = ListField([
-                TextField(_tokenize(sublist),
+                TextField(tokenize(sublist),
                           token_indexers=self._entity_indexers)
                 for sublist in parent_ids])
         if relations is not None:
             fields['relations'] = ListField([
-                TextField(_tokenize(sublist),
+                TextField(tokenize(sublist),
                           token_indexers=self._relation_indexers)
                 for sublist in relations])
         if mention_type is not None:
@@ -202,3 +234,14 @@ class EnhancedWikitextKglmReader:
             fields['alias_copy_inds'] = SequentialArrayField(alias_copy_inds, dtype=np.int64)
 
         return Instance(fields)
+
+
+if __name__ == '__main__':
+
+    # Lets try and ge the datareader to work also
+    ds = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')
+    for inst in ds._read(LOC.lw2 / 'train.jsonl'):
+        for k in inst.keys():
+            print(k)
+        print('potato')
+        break

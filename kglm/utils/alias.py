@@ -18,7 +18,7 @@ try:
 except ImportError:
     from . import _pathfix
 from utils.text import tokenize_to_string
-from config import MAX_ALIASES, MAX_TOKENS
+from config import MAX_ALIAS_NUM, MAX_ALIAS_TOKENS
 
 
 
@@ -82,8 +82,8 @@ class AliasDatabase:
                     token_to_entity_lookup[token].add(entity)
 
             # Start by tokenizing the aliases
-            tokenized_aliases: AliasList = [tokenize_to_string(alias, tokenizer)[:MAX_TOKENS] for alias in aliases]
-            tokenized_aliases = tokenized_aliases[:MAX_ALIASES]
+            tokenized_aliases: AliasList = [tokenize_to_string(alias, tokenizer)[:MAX_ALIAS_TOKENS] for alias in aliases]
+            tokenized_aliases = tokenized_aliases[:MAX_ALIAS_NUM]
             token_lookup[entity] = tokenized_aliases
 
             # Next obtain the set of unqiue tokens appearing in aliases for this entity. Use this
@@ -185,9 +185,9 @@ class AliasDatabase:
         """Looks up alias tokens for the given entities."""
         # Initialize empty tensors and fill them using the lookup
         batch_size, sequence_length = entity_ids.shape
-        global_tensor = entity_ids.new_zeros(batch_size, sequence_length, MAX_ALIASES, MAX_TOKENS,
+        global_tensor = entity_ids.new_zeros(batch_size, sequence_length, MAX_ALIAS_NUM, MAX_ALIAS_TOKENS,
                                              requires_grad=False)
-        local_tensor = entity_ids.new_zeros(batch_size, sequence_length, MAX_ALIASES, MAX_TOKENS,
+        local_tensor = entity_ids.new_zeros(batch_size, sequence_length, MAX_ALIAS_NUM, MAX_ALIAS_TOKENS,
                                             requires_grad=False)
         for i in range(batch_size):
             for j in range(sequence_length):
