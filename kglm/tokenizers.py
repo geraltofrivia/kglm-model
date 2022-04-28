@@ -12,8 +12,8 @@ from typing import List, Union
 class SpacyTokenizer:
     """ A simple obj wrapping a spacy NLP object, yields list of str or tokens as instructed by flag."""
 
-    def __init__(self, spacy_model_nm: str = 'en_core_web_sm'):
-        self.nlp = spacy.load(spacy_model_nm)
+    def __init__(self, spacy_lang: str = 'en_core_web_sm'):
+        self.nlp = spacy.load(spacy_lang, disable=['tagger', 'parser', 'ner'])
 
     def tokenize(self, text: str, keep_spacy_tokens: bool = False) -> List[Union[str, tokens.Token]]:
         """ Spacy Process the doc, and return spay tokens (or str) based on the flag"""
