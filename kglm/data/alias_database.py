@@ -22,6 +22,18 @@ def tokenize_to_string(text: str, tokenizer: Tokenizer) -> List[str]:
     return [token.text for token in tokenizer.tokenize(text)]
 
 
+"""
+    _token_lookup is a dict like 
+    {'Q31': [['Belgium'], ['Kingdom', 'of', 'Belgium'], ['be'], ['🇧', '🇪']],
+     'Q23': [['George', 'Washington'],
+      ['Washington'],
+      ['President', 'Washington'],
+      ['G.', 'Washington']], ... }
+      
+      To access it do:
+      ad = ds._alias_database.load("data/linked-wikitext-2/alias.pkl")
+      ad._token_lookup
+"""
 class AliasDatabase:
     """A Database of Aliases"""
     def __init__(self,

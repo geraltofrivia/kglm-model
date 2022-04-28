@@ -184,3 +184,7 @@ class FancyIterator(DataIterator):
 
     def get_num_batches(self, instances: Iterable[Instance]) -> float:
         return 0
+
+
+if __name__ == '__main__':
+    print('potato')

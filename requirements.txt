@@ -1,5 +1,6 @@
 torch
-git+git://github.com/rloganiv/allennlp.git@pytorch-grad-clip
+git+https://github.com/rloganiv/allennlp.git@pytorch-grad-clip
+overrides==3.1.0
 
 # Coverage reports
 pytest-cov

@@ -33,6 +33,19 @@ def _tokenize(iterable: Iterable[str]):
 
 @DatasetReader.register('enhanced-wikitext')
 class EnhancedWikitextReader(DatasetReader):
+    """
+        Seems to just give us raw text, encapsulated as indices.
+        You run this by:
+
+        ewr = EnhancedWikitextReader()
+        for x in ewr._read('data/linked-wikitext-2/train.jsonl'):
+            print(x)
+            break
+
+        assert type(x) is Instance
+
+    """
+
     def __init__(self,
                  token_indexers: Dict[str, TokenIndexer] = None,
                  lazy: bool = False) -> None:

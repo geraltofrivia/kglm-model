@@ -451,9 +451,13 @@ class LmTrainer(TrainerBase):
         for key, value in self._metric_tracker.best_epoch_metrics.items():
             metrics["best_validation_" + key] = value
 
+        # TODO: we can add resume code here
+
         for epoch in range(epoch_counter, self._num_epochs):
             epoch_start_time = time.time()
+
             train_metrics = self._train_epoch(epoch)
+            # TODO: we can add saving to disk code here
 
             # get peak of memory usage
             if 'cpu_memory_MB' in train_metrics:
