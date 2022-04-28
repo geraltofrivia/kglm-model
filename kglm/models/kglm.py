@@ -1,5 +1,5 @@
 """
-Try to remove the Fields
+Goal: Completely remove AllenNLP dependencies
 """
 
 from collections import defaultdict
@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional
 
 # AllenNLP imports
 from allennlp.data.vocabulary import Vocabulary
+# from allennlp.modules import TextFieldEmbedder, Seq2SeqEncoder
+from torch.nn import Embedding
 from allennlp.modules import Seq2SeqEncoder
 from allennlp.models import Model
 from allennlp.nn import InitializerApplicator
@@ -19,7 +21,6 @@ from allennlp.training.metrics import Average, CategoricalAccuracy, F1Measure
 from overrides import overrides
 import torch
 import torch.nn.functional as F
-from torch.nn import Embedding
 
 # Local imports
 try:
@@ -1121,4 +1122,19 @@ class Kglm(Model):
 
 if __name__ == '__main__':
 
+    from training.trainer import TrainerPieces
+
+    MODEL_PARAMS = {
+        "vocab": {},
+        "token_embedder": 0,
+        "entity_embedder": 0,
+        "relation_embedder": 0,
+        "alias_encoder": 0,
+        "knowledge_graph_path": '',
+        "use_shortlist": False,
+        "hidden_size": 100,
+        "num_layers": 1
+    }
+
+    model = Kglm(*MODEL_PARAMS)
     pass
