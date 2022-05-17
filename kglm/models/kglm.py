@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 # AllenNLP imports
 from allennlp.data.vocabulary import Vocabulary
-# from allennlp.modules import TextFieldEmbedder, Seq2SeqEncoder
+from allennlp.modules import TextFieldEmbedder, Seq2SeqEncoder
 from torch.nn import Embedding
 from allennlp.modules import Seq2SeqEncoder
 from allennlp.models import Model
@@ -57,7 +57,7 @@ class Kglm(Model):
     """
     def __init__(self,
                  vocab: Vocabulary,
-                 # token_embedder: TextFieldEmbedder,
+                 token_embedder: TextFieldEmbedder,
                  # entity_embedder: TextFieldEmbedder,
                  # relation_embedder: TextFieldEmbedder,
                  token_embedder: Embedding,
