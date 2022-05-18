@@ -82,7 +82,7 @@ class Vocab:
             ids = [self._encode_token_(token, allow_unknowns=allow_unknowns) for token in seq]
 
         if return_type == 'torch':
-            return torch.Tensor(ids, dtype=torch.int64)
+            return torch.tensor(ids, dtype=torch.int64)
         elif return_type in [None, 'list']:
             return ids
 
