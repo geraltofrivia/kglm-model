@@ -13,9 +13,10 @@ ROOT_LOC: Path = Path("..") if str(Path().cwd()).split("/")[-1] == "kglm" else P
 LOCATIONS: Dict[str, Path] = FancyDict(
     **{
         "root": ROOT_LOC,
-        "lw2": ROOT_LOC / 'data' / 'linked-wikitext-2'
+        "lw2": ROOT_LOC / 'data' / 'linked-wikitext-2',
     }
 )
+LOCATIONS.vocab = LOCATIONS.lw2 / 'vocab'
 
 for k, v in LOCATIONS.items():
     if not v.exists():
@@ -25,8 +26,10 @@ for k, v in LOCATIONS.items():
 
 MAX_PARENTS = 10
 # AllenNLP stuff
-DEFAULT_PADDING_TOKEN = "@@PADDING@@"
-
+DEFAULT_PAD_TOKEN = "@@PADDING@@"
+DEFAULT_UNK_TOKEN = '@@UNKNOWN@@'
+DEFAULT_BOS_TOKEN = '@@START@@'
+DEFAULT_EOS_TOKEN = '@@END@@'
 
 # Used in utils/alias.py
 MAX_ALIAS_NUM = 4

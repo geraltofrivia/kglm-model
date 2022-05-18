@@ -9,7 +9,7 @@ from typing import Dict, Set, Any, List, Tuple
 # Allennlp imports
 # TODO: get rid of it later.
 from allennlp.data import Vocabulary
-from tokenizers import SpacyTokenizer
+from tokenizer import SpacyTokenizer
 
 
 # Local Imports

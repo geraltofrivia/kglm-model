@@ -17,7 +17,7 @@ except ImportError:
     from . import _pathfix
 from utils.alias import AliasDatabase
 from utils.exceptions import ConfigurationError
-from config import DEFAULT_PADDING_TOKEN, MAX_PARENTS, LOCATIONS as LOC
+from config import DEFAULT_PAD_TOKEN, MAX_PARENTS, LOCATIONS as LOC
 
 
 def normalize_entity_id(raw_entity_id: str) -> str:
@@ -109,12 +109,12 @@ class EnhancedWikitextKglmReader:
                     # We maintain a "shortlist" of observed entities, that is used for baseline models
                     # that only select entities from the set that appear in the document (as opposed to
                     # the set of all possible entities).
-                    shortlist = [DEFAULT_PADDING_TOKEN]
-                    reverse_shortlist = {DEFAULT_PADDING_TOKEN: 0}
-                    raw_entity_ids = [DEFAULT_PADDING_TOKEN] * len(source)
-                    entity_ids = [DEFAULT_PADDING_TOKEN] * len(source)
-                    relations = [[DEFAULT_PADDING_TOKEN]] * len(source)
-                    parent_ids = [[DEFAULT_PADDING_TOKEN]] * len(source)
+                    shortlist = [DEFAULT_PAD_TOKEN]
+                    reverse_shortlist = {DEFAULT_PAD_TOKEN: 0}
+                    raw_entity_ids = [DEFAULT_PAD_TOKEN] * len(source)
+                    entity_ids = [DEFAULT_PAD_TOKEN] * len(source)
+                    relations = [[DEFAULT_PAD_TOKEN]] * len(source)
+                    parent_ids = [[DEFAULT_PAD_TOKEN]] * len(source)
                     shortlist_inds = np.zeros(shape=(len(source),))
                     mention_type = np.zeros(shape=(len(source),))
 
