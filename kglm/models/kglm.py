@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 # AllenNLP imports
 from allennlp.data.vocabulary import Vocabulary
 # from allennlp.modules import TextFieldEmbedder
-# from allennlp.modules import Seq2SeqEncoder
+from allennlp.modules import Seq2SeqEncoder
 from allennlp.models import Model
 from allennlp.nn import InitializerApplicator
 from allennlp.nn.util import (get_text_field_mask, masked_log_softmax, masked_softmax,
@@ -22,7 +22,7 @@ import torch
 import torch.nn.functional as F
 
 # My imports
-from torch.nn import Embedding, LSTM
+from torch.nn import Embedding, LSTM, Module
 
 # Local imports
 try:
@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_OOV_TOKEN = "@@UNKNOWN@@"
 
 # @Model.register('kglm')
-class Kglm(Model):
+class Kglm(Module):
     """
     Knowledge graph language model.
 
@@ -61,7 +61,11 @@ class Kglm(Model):
         The model vocabulary.
     """
     def __init__(self,
-                 vocab: Vocabulary,
+                 # vocab: Vocabulary,
+                 ent_vocab: Vocab,
+                 rel_vocab: Vocab,
+                 raw_ent_vocab: Vocab,
+                 tokens_vocab: Vocab,
                  # token_embedder: TextFieldEmbedder,
                  # entity_embedder: TextFieldEmbedder,
                  # relation_embedder: TextFieldEmbedder,
@@ -83,7 +87,7 @@ class Kglm(Model):
                  alpha: float = 2.0,
                  beta: float = 1.0,
                  initializer: InitializerApplicator = InitializerApplicator()) -> None:
-        super(Kglm, self).__init__(vocab)
+        super(Kglm, self).__init__()
 
         # We extract the `Embedding` layers from the `TokenEmbedders` to apply dropout later on.
         # pylint: disable=protected-access
@@ -98,7 +102,10 @@ class Kglm(Model):
         self._relation_embedder = relation_embedder(input_ids)
         self._alias_encoder = alias_encoder
         self._recent_entities = RecentEntities(cutoff=cutoff)
-        self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path, vocab=vocab)
+        self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path,
+                                                                    ent_vocab,
+                                                                    rel_vocab,
+                                                                    raw_ent_vocab)
         self._use_shortlist = use_shortlist
         self._hidden_size = hidden_size
         self._num_layers = num_layers
@@ -118,19 +125,19 @@ class Kglm(Model):
         self._beta = beta
 
         # RNN Encoders.
-        entity_embedding_dim = entity_embedder.get_output_dim()
-        token_embedding_dim = token_embedder.get_output_dim()
-        self.entity_embedding_dim = entity_embedding_dim
-        self.token_embedding_dim = token_embedding_dim
+        # entity_embedding_dim = entity_embedder.get_output_dim()
+        # token_embedding_dim = token_embedder.get_output_dim()
+        self.entity_embedding_dim = self._entity_embedder.size(-1)
+        self.token_embedding_dim = self._token_embedder.size(-1)
 
         rnns: List[torch.nn.Module] = []
         for i in range(num_layers):
             if i == 0:
-                input_size = token_embedding_dim
+                input_size = self.token_embedding_dim
             else:
                 input_size = hidden_size
             if (i == num_layers - 1):
-                output_size = token_embedding_dim + 2 * entity_embedding_dim
+                output_size = self.token_embedding_dim + 2 * self.entity_embedding_dim
             else:
                 output_size = hidden_size
             rnns.append(torch.nn.LSTM(input_size, output_size, batch_first=True))
@@ -139,28 +146,28 @@ class Kglm(Model):
 
         # Various linear transformations.
         self._fc_mention_type = torch.nn.Linear(
-            in_features=token_embedding_dim,
+            in_features=self.token_embedding_dim,
             out_features=4)
 
         if not use_shortlist:
             self._fc_new_entity = torch.nn.Linear(
-                in_features=entity_embedding_dim,
-                out_features=vocab.get_vocab_size('entity_ids'))
+                in_features=self.entity_embedding_dim,
+                out_features=len(ent_vocab))
 
             if tie_weights:
                 self._fc_new_entity.weight = self._entity_embedder.weight
 
         self._fc_condense = torch.nn.Linear(
-            in_features=token_embedding_dim + entity_embedding_dim,
-            out_features=token_embedding_dim)
+            in_features=self.token_embedding_dim + self.entity_embedding_dim,
+            out_features=self.token_embedding_dim)
 
         self._fc_generate = torch.nn.Linear(
-            in_features=token_embedding_dim,
-            out_features=vocab.get_vocab_size('tokens'))
+            in_features=self.token_embedding_dim,
+            out_features=len(tokens_vocab))
 
         self._fc_copy = torch.nn.Linear(
-            in_features=token_embedding_dim,
-            out_features=token_embedding_dim)
+            in_features=self.token_embedding_dim,
+            out_features=self.token_embedding_dim)
 
         if tie_weights:
             self._fc_generate.weight = self._token_embedder.weight
@@ -168,8 +175,8 @@ class Kglm(Model):
         self._state: Optional[Dict[str, Any]] = None
 
         # Metrics
-        self._unk_index = vocab.get_token_index(DEFAULT_OOV_TOKEN)
-        self._unk_penalty = math.log(vocab.get_vocab_size('tokens_unk'))
+        self._unk_index = tokens_vocab.unk
+        self._unk_penalty = math.log(len(tokens_vocab))
         self._ppl = Ppl()
         self._upp = Ppl()
         self._kg_ppl = Ppl()  # Knowledge-graph ppl
@@ -1134,8 +1141,12 @@ class Kglm(Model):
 if __name__ == '__main__':
 
     from training.trainer import TrainerPieces
+
     MODEL_PARAMS = {
-        "vocab": {},
+        "ent_vocab": Vocab.load(LOC.vocab / 'entity_ids.txt'),
+        "rel_vocab": Vocab.load(LOC.vocab / 'relations.txt'),
+        "raw_ent_vocab": Vocab.load(LOC.vocab / 'raw_entity_ids.txt'),
+        "tokens_vocab": Vocab.load(LOC.vocab / 'tokens.txt'),
         "token_embedder": Embedding(4, 400),
         "entity_embedder": Embedding(4, 256),
         "relation_embedder": Embedding(4, 256),
@@ -1145,10 +1156,7 @@ if __name__ == '__main__':
         "hidden_size": 1150,
         "num_layers": 3,
     }
-    text = "The colleague sitting next to me is [MASK]"
+    # text = "The colleague sitting next to me is [MASK]"
 
-    # Load vocab
-    vocab_fdir = LOC.vocab / 'entity_ids.txt'
-    vocab = Vocab.load(vocab_fdir)
 
     model = Kglm(**MODEL_PARAMS)
