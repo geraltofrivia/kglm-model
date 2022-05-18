@@ -9,14 +9,19 @@ import numpy as np
 from copy import deepcopy
 from itertools import count
 from collections import deque
-from typing import List, Tuple, Iterable, Dict, Deque
+from dataclasses import asdict
+from typing import List, Tuple, Iterable, Dict, Deque, Iterator
 
 # Local Imports
 try:
     import _pathfix
 except ImportError:
     from . import _pathfix
+from utils.data import Instance
+from config import LOCATIONS as LOC
 from utils.exceptions import ConfigurationError
+from tokenizer import SpacyTokenizer
+from datareaders import EnhancedWikitextKglmReader
 
 
 class FancyIterator:
@@ -27,6 +32,7 @@ class FancyIterator:
     def __init__(self,
                  batch_size: int,
                  split_size: int,
+                 tokenizer: SpacyTokenizer,
                  splitting_keys: List[str],
                  truncate: bool = True,
                  instances_per_epoch: int = None,
@@ -54,8 +60,30 @@ class FancyIterator:
         self._truncate = truncate
         self._batch_size = batch_size
 
+        self.vocab = tokenizer
+
+    def _batch_convert_(self, batch: Iterable[Instance]):
+        """ wrapper over self.vocab.batch_convert """
+
+        # Go through all text fields in instance and convert them to nice crisp tensors
+        relevant_fields = ['source', 'target']
+
+        for field in relevant_fields:
+
+            # create a value column
+            values = [instance.__getattribute__(field) for instance in batch]
+
+            # Proc it
+            processed = self.vocab.batch_convert(values, pad=True, to='torch')
+
+            # Put it back
+            for i, instance in enumerate(batch):
+                instance.__setattr__(field, processed[i])
+
+        return batch
+
     def __call__(self,
-                 instances: Iterable,
+                 instances: Iterable[Instance],
                  num_epochs: int = None,
                  starting_epoch: int = 0,
                  shuffle: bool = False) -> Iterable[Dict]:
@@ -84,7 +112,7 @@ class FancyIterator:
             for instance in instances:
 
                 # Now we split the instance into chunks.
-                chunks, length = self._split(instance)
+                chunks, length = self._split_instance(instance.asdict())
 
                 # Next we identify which queue is the shortest and add the chunks to that queue.
                 destination = np.argmin(queue_lengths)
@@ -92,26 +120,30 @@ class FancyIterator:
                 queue_lengths[destination] += length
 
             # We need a NULL instance to replace the output of an exhausted queue if we are evaluating
-            prototype = deepcopy(chunks[-1])
-            new_fields: Dict[str, Field] = {}
-            for name, field in prototype.fields.items():
-                if isinstance(field, MetadataField):
-                    new_fields[name] = field
-                else:
-                    new_fields[name] = field.empty_field()
-            blank_instance = Instance(new_fields)
+            # prototype = deepcopy(chunks[-1])
+            # new_fields: dict = {}
+            # for name, field in prototype.asdict().items():
+            #     if name in prototype.metadata:
+            #         new_fields[name] = field
+            #     else:
+            #         new_fields[name] = []
+            blank_instance = Instance.empty()
 
             for batch in self._generate_batches(queues, blank_instance):
-                if self._track_epoch:
-                    add_epoch_number(batch, epoch)
 
-                if self.vocab is not None:
-                    batch.index_instances(self.vocab)
+                # if self.vocab is not None:
+                #     # This changes text fields into vocabbed ints
+                #     # batch.index_instances(self.vocab)
+                #     batch = self.vocab.batch_tokenize(batch)
+                #
+                # padding_lengths = batch.get_padding_lengths()
+                # # this pads and converts to torch tensors.
+                # # we could do both things here if needed
+                # yield batch.as_tensor_dict(padding_lengths), 1
+                yield self._batch_convert_(batch)
 
-                padding_lengths = batch.get_padding_lengths()
-                yield batch.as_tensor_dict(padding_lengths), 1
-
-    def _split(self, instance: Dict) -> Tuple[List[Dict], int]:
+    def _split_instance(self, instance: Dict) -> Tuple[List[Dict], int]:
+        """Splits one document into multiple batches. That's it. That's all that's happening here."""
 
         # Determine the size of the sequence inside the instance.
         true_length = len(instance['source'])
@@ -127,7 +159,7 @@ class FancyIterator:
             split_indices.append(true_length)
 
         # Determine which fields are not going to be split
-        constant_fields = [x for x in instance.fields if x not in self._splitting_keys]
+        constant_fields = [x for x in instance.keys() if x not in self._splitting_keys]
 
         # Create the list of chunks
         chunks: List[Dict] = []
@@ -139,35 +171,24 @@ class FancyIterator:
 
             # Determine whether or not to signal model to reset.
             if i == 0:
-                reset = SequentialArrayField(np.array(1), dtype=np.uint8)
+                reset = np.array(1)
             else:
-                reset = SequentialArrayField(np.array(0), dtype=np.uint8)
+                reset = np.array(0)
             chunk_fields['reset'] = reset
 
             # Obtain splits derived from sequence fields.
             for key in self._splitting_keys:
                 source_field = instance[key]
-                # pylint: disable=protected-access
-                if isinstance(source_field, TextField):
-                    split_field = TextField(source_field.tokens[start:end],
-                                            source_field._token_indexers)
-                elif isinstance(source_field, SequentialArrayField):
-                    # TODO: Figure out how to use sequence dim here...
-                    split_field = SequentialArrayField(source_field.array[start:end],
-                                                       dtype=source_field._dtype)
-                elif isinstance(source_field, ListField):
-                    split_field = ListField(source_field.field_list[start:end])
-                else:
-                    raise NotImplementedError('FancyIterator currently only supports splitting '
-                                              '`TextField`s or `SequentialArrayField`s.')
+                split_field = source_field[start:end]
                 chunk_fields[key] = split_field
-            chunks.append(Instance(chunk_fields))
+            chunks.append(chunk_fields)
 
         return chunks, padded_length
 
-    def _generate_batches(self,
-                          queues: List[Deque[Instance]],
-                          blank_instance: Instance) -> Iterator[Batch]:
+    def _generate_batches(
+            self,
+            queues: List[Deque[Instance]],
+            blank_instance: Instance) -> Iterator[Instance]:
         num_iter = max(len(q) for q in queues)
         for _ in range(num_iter):
             instances: List[Instance] = []
@@ -183,8 +204,21 @@ class FancyIterator:
                     else:
                         instance = blank_instance
                 instances.append(instance)
-            batch = Batch(instances)
+            batch = instances
             yield batch
 
-    def get_num_batches(self, instances: Iterable[Instance]) -> float:
+    @staticmethod
+    def get_num_batches(instances: Iterable[Instance]) -> float:
         return 0
+
+
+if __name__ == '__main__':
+
+    # Lets try and ge the datareader to work
+    ds = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')
+
+    # Get the vocab and give it to spacy tokenizer.
+    tokenizer = SpacyTokenizer()
+
+    # Now make a dataiter to work with it.
+    di = FancyIterator(batch_size=10, split_size=70, )
