@@ -5,6 +5,8 @@
 from pathlib import Path
 from typing import Union, Dict, Optional, List
 
+import torch
+
 from config import DEFAULT_UNK_TOKEN, DEFAULT_PAD_TOKEN, DEFAULT_BOS_TOKEN, DEFAULT_EOS_TOKEN, LOCATIONS as LOC
 
 
@@ -20,30 +22,30 @@ class Vocab:
         self._name: str = name if name is not None else ''
         self._filename: Optional[Path] = Path(filename) if filename is not None else None
 
-        self.word_to_id: Dict[str, int] = {tok: i for i, tok in enumerate(vocab)}
-        self.id_to_word: List[str] = vocab
-        print(f"A vocab: {name} with {len(self.word_to_id)} elements ready to go!")
+        self.tok_to_id: Dict[str, int] = {tok: i for i, tok in enumerate(vocab)}
+        self.id_to_tok: List[str] = vocab
+        print(f"A vocab: {name} with {len(self.tok_to_id)} elements ready to go!")
 
         # Now to define some special chars that will come in handy
-        self.unk = self.word_to_id[DEFAULT_UNK_TOKEN]
+        self.unk = self.tok_to_id[DEFAULT_UNK_TOKEN]
         try:
-            self.pad = self.word_to_id[DEFAULT_PAD_TOKEN]
+            self.pad = self.tok_to_id[DEFAULT_PAD_TOKEN]
         except KeyError:
-            self.id_to_word.append(DEFAULT_PAD_TOKEN)
-            self.word_to_id[DEFAULT_PAD_TOKEN] = len(self.word_to_id)
-            self.pad = self.word_to_id[DEFAULT_PAD_TOKEN]
+            self.id_to_tok.append(DEFAULT_PAD_TOKEN)
+            self.tok_to_id[DEFAULT_PAD_TOKEN] = len(self.tok_to_id)
+            self.pad = self.tok_to_id[DEFAULT_PAD_TOKEN]
         try:
-            self.bos = self.word_to_id[DEFAULT_BOS_TOKEN]
+            self.bos = self.tok_to_id[DEFAULT_BOS_TOKEN]
         except KeyError:
-            self.id_to_word.append(DEFAULT_BOS_TOKEN)
-            self.word_to_id[DEFAULT_BOS_TOKEN] = len(self.word_to_id)
-            self.pad = self.word_to_id[DEFAULT_BOS_TOKEN]
+            self.id_to_tok.append(DEFAULT_BOS_TOKEN)
+            self.tok_to_id[DEFAULT_BOS_TOKEN] = len(self.tok_to_id)
+            self.pad = self.tok_to_id[DEFAULT_BOS_TOKEN]
         try:
-            self.eos = self.word_to_id[DEFAULT_EOS_TOKEN]
+            self.eos = self.tok_to_id[DEFAULT_EOS_TOKEN]
         except KeyError:
-            self.id_to_word.append(DEFAULT_EOS_TOKEN)
-            self.word_to_id[DEFAULT_EOS_TOKEN] = len(self.word_to_id)
-            self.pad = self.word_to_id[DEFAULT_EOS_TOKEN]
+            self.id_to_tok.append(DEFAULT_EOS_TOKEN)
+            self.tok_to_id[DEFAULT_EOS_TOKEN] = len(self.tok_to_id)
+            self.pad = self.tok_to_id[DEFAULT_EOS_TOKEN]
 
     @classmethod
     def load(cls, file: Path, name: Optional[str] = None):
@@ -57,13 +59,13 @@ class Vocab:
         return cls(name=name, filename=file, vocab=vocab)
 
     def __getitem__(self, item):
-        return self.word_to_id[item]
+        return self.tok_to_id[item]
 
     def get(self, item, alternate):
-        return self.word_to_id.get(item, alternate)
+        return self.tok_to_id.get(item, alternate)
 
     def __len__(self):
-        return len(self.word_to_id)
+        return len(self.tok_to_id)
 
     def _encode_token_(self, token: str, allow_unknowns: bool) -> int:
         """ just a 'get' with a unknown fallback if needed """
@@ -72,19 +74,25 @@ class Vocab:
 
         return self.get(token, self.unk)
 
-    def encode(self, seq: Union[str, List[str]], allow_unknowns: bool = True):
+    def encode(self, seq: Union[str, List[str]], allow_unknowns: bool = True, return_type: Optional[str] = None):
         if type(seq) is str:
-            return self._encode_token_(seq, allow_unknowns=allow_unknowns)
+            ids = self._encode_token_(seq, allow_unknowns=allow_unknowns)
+        else:
+            # Its an actual sequence
+            ids = [self._encode_token_(token, allow_unknowns=allow_unknowns) for token in seq]
 
-        # Its an actual sequence
-        return [self._encode_token_(token, allow_unknowns=allow_unknowns) for token in seq]
+        if return_type == 'torch':
+            return torch.Tensor(ids, dtype=torch.int64)
+        elif return_type in [None, 'list']:
+            return ids
 
     def _decode_token_(self, tok_id: int):
         """ hard fails. not graceful """
-        return self.id_to_word[tok_id]
+        return self.id_to_tok[tok_id]
 
     def decode(self, tok_ids: List[int]):
-        return [self.id_to_word[tok_id] for tok_id in tok_ids]
+        # TODO allow it to handle tensors also
+        return [self.id_to_tok[tok_id] for tok_id in tok_ids]
 
 
 if __name__ == '__main__':

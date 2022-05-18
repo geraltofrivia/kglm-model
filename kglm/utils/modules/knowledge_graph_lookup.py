@@ -2,7 +2,6 @@ import logging
 import pickle
 from typing import List, Tuple
 
-from allennlp.data.vocabulary import Vocabulary
 from tqdm import tqdm
 import torch
 
@@ -11,7 +10,7 @@ try:
     import _pathfix
 except ImportError:
     from . import _pathfix
-
+from utils.vocab import Vocab
 from utils.nn.util import nested_enumerate
 
 logger = logging.getLogger(__name__)
@@ -20,9 +19,13 @@ logger = logging.getLogger(__name__)
 class KnowledgeGraphLookup:
     def __init__(self,
                  knowledge_graph_path: str,
-                 vocab: Vocabulary) -> None:
+                 ent_vocab: Vocab,
+                 rel_vocab: Vocab,
+                 raw_ent_vocab: Vocab) -> None:
         self._knowledge_graph_path = knowledge_graph_path
-        self._vocab = vocab
+        self._ent_vocab = ent_vocab
+        self._rel_vocab = rel_vocab
+        self._raw_ent_vocab = raw_ent_vocab
         self._relations, self._tail_ids = self.load_edges(knowledge_graph_path)
 
     def load_edges(self, knowledge_graph_path: str) -> Tuple[List[torch.LongTensor], List[torch.LongTensor]]:
@@ -30,7 +33,7 @@ class KnowledgeGraphLookup:
         with open(knowledge_graph_path, 'rb') as f:
             knowledge_graph = pickle.load(f)
 
-        entity_idx_to_token = self._vocab.get_index_to_token_vocabulary('entity_ids')
+        entity_idx_to_token = self._ent_vocab.id_to_tok
         all_relations: List[torch.Tensor] = []
         all_tail_ids: List[torch.Tensor] = []
         for i in tqdm(range(len(entity_idx_to_token))):
@@ -41,20 +44,22 @@ class KnowledgeGraphLookup:
                 relations = None
                 tail_ids = None
             else:
-                if edges == []:
+                if not edges:
                     relations = None
                     tail_ids = None
                 else:
                     # Get the relation and tail id tokens
                     relation_tokens, tail_id_tokens = zip(*knowledge_graph[entity_id])
                     # Index tokens
-                    relations = [self._vocab.get_token_index(t, 'relations') for t in relation_tokens]
-                    tail_ids = [self._vocab.get_token_index(t, 'raw_entity_ids') for t in tail_id_tokens]
+                    relations = self._rel_vocab.encode(relation_tokens, return_type='torch')
+                    tail_ids = self._raw_ent_vocab.encode(tail_id_tokens, return_type='torch')
                     # Convert to tensors
                     relations = torch.LongTensor(relations)
                     tail_ids = torch.LongTensor(tail_ids)
             all_relations.append(relations)
             all_tail_ids.append(tail_ids)
+
+            # TODO: you need tensors here !?
         return all_relations, all_tail_ids
 
     def __call__(self,
