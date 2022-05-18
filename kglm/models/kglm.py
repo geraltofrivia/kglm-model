@@ -9,9 +9,8 @@ from typing import Any, Dict, List, Optional
 
 # AllenNLP imports
 from allennlp.data.vocabulary import Vocabulary
-from allennlp.modules import TextFieldEmbedder, Seq2SeqEncoder
-from torch.nn import Embedding
-from allennlp.modules import Seq2SeqEncoder
+# from allennlp.modules import TextFieldEmbedder
+# from allennlp.modules import Seq2SeqEncoder
 from allennlp.models import Model
 from allennlp.nn import InitializerApplicator
 from allennlp.nn.util import (get_text_field_mask, masked_log_softmax, masked_softmax,
@@ -22,11 +21,17 @@ from overrides import overrides
 import torch
 import torch.nn.functional as F
 
+# My imports
+from torch.nn import Embedding, LSTM
+
 # Local imports
 try:
     import _pathfix
 except ImportError:
     from . import _pathfix
+
+from config import LOCATIONS as LOC
+from utils.vocab import Vocab
 
 from utils.alias import AliasDatabase
 
@@ -57,13 +62,13 @@ class Kglm(Model):
     """
     def __init__(self,
                  vocab: Vocabulary,
-                 token_embedder: TextFieldEmbedder,
+                 # token_embedder: TextFieldEmbedder,
                  # entity_embedder: TextFieldEmbedder,
                  # relation_embedder: TextFieldEmbedder,
                  token_embedder: Embedding,
                  entity_embedder: Embedding,
                  relation_embedder: Embedding,
-                 alias_encoder: Seq2SeqEncoder,
+                 alias_encoder: LSTM,
                  knowledge_graph_path: str,
                  use_shortlist: bool,
                  hidden_size: int,
@@ -82,9 +87,15 @@ class Kglm(Model):
 
         # We extract the `Embedding` layers from the `TokenEmbedders` to apply dropout later on.
         # pylint: disable=protected-access
-        self._token_embedder = token_embedder._token_embedders['tokens']
-        self._entity_embedder = entity_embedder._token_embedders['entity_ids']
-        self._relation_embedder = relation_embedder._token_embedders['relations']
+
+        # assume we have 1 input text with the following ids:
+        input_ids = torch.LongTensor([0, 1, 2, 3])
+        # self._token_embedder = token_embedder._token_embedders['tokens']
+        # self._entity_embedder = entity_embedder._token_embedders['entity_ids']
+        # self._relation_embedder = relation_embedder._token_embedders['relations']
+        self._token_embedder = token_embedder(input_ids)
+        self._entity_embedder = entity_embedder(input_ids)
+        self._relation_embedder = relation_embedder(input_ids)
         self._alias_encoder = alias_encoder
         self._recent_entities = RecentEntities(cutoff=cutoff)
         self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path, vocab=vocab)
@@ -1123,18 +1134,21 @@ class Kglm(Model):
 if __name__ == '__main__':
 
     from training.trainer import TrainerPieces
-
     MODEL_PARAMS = {
         "vocab": {},
-        "token_embedder": 0,
-        "entity_embedder": 0,
-        "relation_embedder": 0,
-        "alias_encoder": 0,
-        "knowledge_graph_path": '',
+        "token_embedder": Embedding(4, 400),
+        "entity_embedder": Embedding(4, 256),
+        "relation_embedder": Embedding(4, 256),
+        "alias_encoder": LSTM(input_size=400, hidden_size=400, num_layers=3),
+        "knowledge_graph_path": "data/linked-wikitext-2/knowledge_graph.pkl",
         "use_shortlist": False,
-        "hidden_size": 100,
-        "num_layers": 1
+        "hidden_size": 1150,
+        "num_layers": 3,
     }
+    text = "The colleague sitting next to me is [MASK]"
 
-    model = Kglm(*MODEL_PARAMS)
-    pass
+    # Load vocab
+    vocab_fdir = LOC.vocab / 'entity_ids.txt'
+    vocab = Vocab.load(vocab_fdir)
+
+    model = Kglm(**MODEL_PARAMS)
