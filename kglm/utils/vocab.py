@@ -32,8 +32,18 @@ class Vocab:
             self.id_to_word.append(DEFAULT_PAD_TOKEN)
             self.word_to_id[DEFAULT_PAD_TOKEN] = len(self.word_to_id)
             self.pad = self.word_to_id[DEFAULT_PAD_TOKEN]
-        self.bos = self.word_to_id[DEFAULT_BOS_TOKEN]
-        self.eos = self.word_to_id[DEFAULT_EOS_TOKEN]
+        try:
+            self.bos = self.word_to_id[DEFAULT_BOS_TOKEN]
+        except KeyError:
+            self.id_to_word.append(DEFAULT_BOS_TOKEN)
+            self.word_to_id[DEFAULT_BOS_TOKEN] = len(self.word_to_id)
+            self.pad = self.word_to_id[DEFAULT_BOS_TOKEN]
+        try:
+            self.eos = self.word_to_id[DEFAULT_EOS_TOKEN]
+        except KeyError:
+            self.id_to_word.append(DEFAULT_EOS_TOKEN)
+            self.word_to_id[DEFAULT_EOS_TOKEN] = len(self.word_to_id)
+            self.pad = self.word_to_id[DEFAULT_EOS_TOKEN]
 
     @classmethod
     def load(cls, file: Path, name: Optional[str] = None):
