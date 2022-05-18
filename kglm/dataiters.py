@@ -6,10 +6,8 @@
 """
 import random
 import numpy as np
-from copy import deepcopy
-from itertools import count
+from tqdm.auto import tqdm
 from collections import deque
-from dataclasses import asdict
 from typing import List, Tuple, Iterable, Dict, Deque, Iterator
 
 # Local Imports
@@ -22,6 +20,7 @@ from config import LOCATIONS as LOC
 from utils.exceptions import ConfigurationError
 from tokenizer import SpacyTokenizer
 from datareaders import EnhancedWikitextKglmReader
+from utils.vocab import Vocab
 
 
 class FancyIterator:
@@ -29,6 +28,7 @@ class FancyIterator:
         This is the iterator that takes documents processed by EnhancedWikitextKglmReader
             and makes them ready for training (encapsulated in AllenNLP gunk but we can take care of that)...
     """
+
     def __init__(self,
                  batch_size: int,
                  split_size: int,
@@ -56,13 +56,13 @@ class FancyIterator:
         """
 
         self._splitting_keys = splitting_keys
-        self._split_size = split_size       # Set as 70 in kglm.jsonnet
+        self._split_size = split_size  # Set as 70 in kglm.jsonnet
         self._truncate = truncate
         self._batch_size = batch_size
 
-        self.vocab = tokenizer
+        self.tokenizer = tokenizer
 
-    def _batch_convert_(self, batch: Iterable[Instance]):
+    def _batch_convert_(self, batch: List[Dict]):
         """ wrapper over self.vocab.batch_convert """
 
         # Go through all text fields in instance and convert them to nice crisp tensors
@@ -71,10 +71,10 @@ class FancyIterator:
         for field in relevant_fields:
 
             # create a value column
-            values = [instance.__getattribute__(field) for instance in batch]
+            values = [instance[field] for instance in batch]
 
             # Proc it
-            processed = self.vocab.batch_convert(values, pad=True, to='torch')
+            processed = self.tokenizer.batch_convert(values, pad=True, to='torch')
 
             # Put it back
             for i, instance in enumerate(batch):
@@ -84,7 +84,7 @@ class FancyIterator:
 
     def __call__(self,
                  instances: Iterable[Instance],
-                 num_epochs: int = None,
+                 num_epochs: int = 1,
                  starting_epoch: int = 0,
                  shuffle: bool = False) -> Iterable[Dict]:
 
@@ -109,8 +109,7 @@ class FancyIterator:
             # ensure each queue's length is roughly equal in size.
             queues: List[Deque[Dict]] = [deque() for _ in range(self._batch_size)]
             queue_lengths = np.zeros(self._batch_size, dtype=int)
-            for instance in instances:
-
+            for instance in tqdm(instance_list):
                 # Now we split the instance into chunks.
                 chunks, length = self._split_instance(instance.asdict())
 
@@ -130,7 +129,6 @@ class FancyIterator:
             blank_instance = Instance.empty()
 
             for batch in self._generate_batches(queues, blank_instance):
-
                 # if self.vocab is not None:
                 #     # This changes text fields into vocabbed ints
                 #     # batch.index_instances(self.vocab)
@@ -187,8 +185,8 @@ class FancyIterator:
 
     def _generate_batches(
             self,
-            queues: List[Deque[Instance]],
-            blank_instance: Instance) -> Iterator[Instance]:
+            queues: List[Deque[Dict]],
+            blank_instance: Instance) -> List[Dict]:
         num_iter = max(len(q) for q in queues)
         for _ in range(num_iter):
             instances: List[Instance] = []
@@ -213,12 +211,33 @@ class FancyIterator:
 
 
 if __name__ == '__main__':
-
     # Lets try and ge the datareader to work
     ds = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')
 
+    # Pull a vocab
+    vocab = Vocab.load(LOC.vocab / 'tokens.txt')
+
     # Get the vocab and give it to spacy tokenizer.
-    tokenizer = SpacyTokenizer()
+    tokenizer = SpacyTokenizer(vocab=vocab, pretokenized=True)
 
     # Now make a dataiter to work with it.
-    di = FancyIterator(batch_size=10, split_size=70, )
+    di = FancyIterator(
+        batch_size=10,
+        split_size=70,
+        tokenizer=tokenizer,
+        splitting_keys=[
+            "source",
+            "target",
+            "mention_type",
+            "raw_entities",
+            "entities",
+            "parent_ids",
+            "relations",
+            "shortlist_inds",
+            "alias_copy_inds"
+        ])
+
+    for x in di(ds.load(LOC.lw2 / 'train.jsonl')):
+        print(x)
+        print('potato')
+        break

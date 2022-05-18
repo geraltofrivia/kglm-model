@@ -3,12 +3,8 @@
 """
 import json
 import numpy as np
-from typing import Dict, Iterable
+from typing import Iterable
 # from overrides import overrides
-
-# AllenNLP Imports
-from allennlp.data.token_indexers import TokenIndexer
-from allennlp.data.instance import Instance
 
 # Local imports
 try:
@@ -17,6 +13,7 @@ except ImportError:
     from . import _pathfix
 from utils.alias import AliasDatabase
 from utils.exceptions import ConfigurationError
+from utils.data import Instance
 from config import DEFAULT_PAD_TOKEN, MAX_PARENTS, LOCATIONS as LOC
 
 
@@ -37,10 +34,6 @@ class EnhancedWikitextKglmReader:
     def __init__(self,
                  alias_database_path: str,
                  mode: str = "generative",
-                 token_indexers: Dict[str, TokenIndexer] = None,
-                 entity_indexers: Dict[str, TokenIndexer] = None,
-                 raw_entity_indexers: Dict[str, TokenIndexer] = None,
-                 relation_indexers: Dict[str, TokenIndexer] = None,
                  lazy: bool = False) -> None:
         """
         Parameters
@@ -82,7 +75,7 @@ class EnhancedWikitextKglmReader:
         self._alias_database = AliasDatabase.load(path=alias_database_path)
 
     # @overrides
-    def _read(self, file_path: str) -> Iterable[Instance]:
+    def load(self, file_path: str) -> Iterable[Instance]:
         with open(file_path, 'r') as f:
             for line in f:
                 data = json.loads(line)
@@ -169,19 +162,19 @@ class EnhancedWikitextKglmReader:
                         else:
                             mention_type[start + mode_offset] = 2
 
-                yield {
-                    "source": source,
-                    "target": target,
-                    "shortlist": shortlist,
-                    "reverse_shortlist": reverse_shortlist,
-                    "raw_entity_ids": raw_entity_ids,
-                    "entity_ids": entity_ids,
-                    "relations": relations,
-                    "parent_ids": parent_ids,
-                    "shortlist_inds": shortlist_inds,
-                    "mention_type": mention_type,
-                    "alias_copy_inds": alias_copy_inds
-                }
+                yield Instance(
+                    source=source,
+                    target=target,
+                    entities=entity_ids,
+                    relations=relations,
+                    raw_entities=raw_entity_ids,
+                    parent_ids=parent_ids,
+                    shortlist=shortlist,
+                    reverse_shortlist=reverse_shortlist,
+                    shortlist_inds=shortlist_inds,
+                    mention_type=mention_type,
+                    alias_copy_inds=alias_copy_inds
+                )
 
                 # yield self.text_to_instance(source,
                 #                             target,
@@ -251,7 +244,7 @@ if __name__ == '__main__':
 
     # Lets try and ge the datareader to work also
     ds = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')
-    for inst in ds._read(LOC.lw2 / 'train.jsonl'):
+    for inst in ds.load(LOC.lw2 / 'train.jsonl'):
         for k in inst.keys():
             print(k)
         print('potato')

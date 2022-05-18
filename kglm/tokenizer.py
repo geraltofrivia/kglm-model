@@ -7,18 +7,38 @@
 import spacy
 import torch
 from spacy import tokens
-from typing import List, Union, Dict, Optional
+from typing import List, Union, Optional
 
 # Local imports
+try:
+    import _pathfix
+except ImportError:
+    from . import _pathfix
+from utils.vocab import Vocab
 from utils.exceptions import BadParameters, NoVocabInTokenizer
 from config import DEFAULT_UNK_TOKEN, DEFAULT_PAD_TOKEN
+from utils.text import NullTokenizer
 
 
 class SpacyTokenizer:
     """ A simple obj wrapping a spacy NLP object, yields list of str or tokens as instructed by flag."""
 
-    def __init__(self, vocab: Dict[str, int] = None, spacy_lang: str = 'en_core_web_sm', ):
+    def __init__(self, vocab: Optional[Vocab] = None, spacy_lang: str = 'en_core_web_sm', pretokenized: bool = False):
+        """
+            A tokenizer which either gets text sequences (tokenized already or not) and it does a whole bunch of things
+                over them including tokenization, converting str to IDs, padding them, converting them to tensor
+
+            Alternatively, it can do the opposite ie give it a int or a list of ints and it tells us what is their text
+
+        Parameters
+        ----------
+        vocab
+        spacy_lang
+        pretokenized
+        """
         self.nlp = spacy.load(spacy_lang, disable=['tagger', 'parser', 'ner'])
+        if pretokenized:
+            self.nlp.tokenizer = NullTokenizer(self.nlp.vocab)
         self.vocab = vocab
 
     def tokenize(self, text: str, keep_spacy_tokens: bool = False) -> List[Union[str, tokens.Token]]:
@@ -77,6 +97,9 @@ class SpacyTokenizer:
 
             # Put each instance on it
             for i, instance in enumerate(vocabularized):
+                # TODO solve RunTimeError
+                # RuntimeError: expand(torch.LongTensor{[10, 70]}, size=[70]): the number of sizes provided
+                # (1) must be greater or equal to the number of dimensions in the tensor (2)
                 tensor[i, :len(instance)] = tensor
 
             # If Max length is specified, cut things off there
