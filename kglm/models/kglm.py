@@ -235,7 +235,7 @@ class Kglm(Module):
 
         return new_entity_ids, shortlist_inds
 
-    def get_raw_entity_ids(self, entity_ids: torch.LongTensor) ->  torch.LongTensor:
+    def get_raw_entity_ids(self, entity_ids: torch.LongTensor) -> torch.LongTensor:
         raw_entity_ids = torch.zeros_like(entity_ids)
         for *index, entity_id in nested_enumerate(entity_ids.tolist()):
             token = self.vocab.get_token_from_index(entity_id, 'entity_ids')
@@ -1158,5 +1158,24 @@ if __name__ == '__main__':
     }
     # text = "The colleague sitting next to me is [MASK]"
 
-
+    # Initialize KGLM
     model = Kglm(**MODEL_PARAMS)
+
+    # forward pass
+    MODEL_INPUTS = {
+        "source": Dict[str, torch.Tensor],
+        "reset": torch.Tensor,
+        "metadata": List[Dict[str, Any]],
+        "target": Dict[str, torch.Tensor],
+        "alias_database": AliasDatabase,
+        "mention_type": torch.Tensor,
+        "raw_entity_ids": Dict[str, torch.Tensor],
+        "entity_ids": Dict[str, torch.Tensor],
+        "parent_ids": Dict[str, torch.Tensor],
+        "relations": Dict[str, torch.Tensor],
+        "shortlist": Dict[str, torch.Tensor],
+        "shortlist_inds": torch.Tensor,
+        "alias_copy_inds": torch.Tensor
+    }
+
+    outputs = model(**MODEL_INPUTS)
