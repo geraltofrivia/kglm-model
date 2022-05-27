@@ -97,7 +97,7 @@ class FancyIterator:
         """
 
         bs = len(batch)
-        outputs = {'metadata': [{'alias_database'} for _ in range(bs)]}
+        outputs = {'metadata': [{'alias_database': alias_database} for _ in range(bs)]}
 
         # Fix source
         source_values = [instance.source for instance in batch]
