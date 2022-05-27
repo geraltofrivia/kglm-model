@@ -2,7 +2,7 @@
     Define data classes to mimic allennlp instances.
     Make it super specific to the data we've been given. That's fine.
 """
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from typing import List, Dict
 import numpy as np
 
@@ -33,9 +33,15 @@ class Instance:
     mention_type: np.ndarray                # TODO: what is it again?
     alias_copy_inds: np.ndarray             # TODO: what is it again?
 
+    # Other things that are not needed at the start but come in handy later
+    reset: np.ndarray = field(default=np.ndarray([]))
+
     def split(self):
         # TODO
         ...
+
+    def __len__(self):
+        return len(self.source)
 
     @property
     def metadata(self):

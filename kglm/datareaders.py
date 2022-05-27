@@ -72,7 +72,7 @@ class EnhancedWikitextKglmReader:
         #         not isinstance(self._relation_indexers['relations'], SingleIdTokenIndexer):
         #     raise ConfigurationError("EnhancedWikitextReader expects 'relation_indexers' to contain "
         #                              "a 'single_id' token indexer called 'relations'.")
-        self._alias_database = AliasDatabase.load(path=alias_database_path)
+        self.alias_database = AliasDatabase.load(path=alias_database_path)
 
     # @overrides
     def load(self, file_path: str) -> Iterable[Instance]:
@@ -153,8 +153,8 @@ class EnhancedWikitextKglmReader:
                                 relations[i + mode_offset] = relation[:MAX_PARENTS]
                                 parent_ids[i + mode_offset] = parent_id[:MAX_PARENTS]
                             if self._mode == "generative":
-                                alias_copy_inds[i + mode_offset] = self._alias_database.token_to_uid(raw_entity_id,
-                                                                                                     tokens[i])
+                                alias_copy_inds[i + mode_offset] = self.alias_database.token_to_uid(raw_entity_id,
+                                                                                                    tokens[i])
                         # Now put in proper mention type for first token
                         start = annotation['span'][0]
                         if new_entity:

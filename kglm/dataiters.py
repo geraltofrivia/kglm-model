@@ -4,11 +4,13 @@
 
     This is 2022. Keep up.
 """
+import torch
 import random
 import numpy as np
 from tqdm.auto import tqdm
 from collections import deque
-from typing import List, Tuple, Iterable, Dict, Deque, Iterator
+from dataclasses import fields
+from typing import List, Tuple, Iterable, Dict, Deque
 
 # Local Imports
 try:
@@ -18,9 +20,10 @@ except ImportError:
 from utils.data import Instance
 from config import LOCATIONS as LOC
 from utils.exceptions import ConfigurationError
-from tokenizer import SpacyTokenizer
+from tokenizer import SpacyTokenizer, SimpleTokenizer
 from datareaders import EnhancedWikitextKglmReader
 from utils.vocab import Vocab
+from utils.alias import AliasDatabase
 
 
 class FancyIterator:
@@ -33,6 +36,9 @@ class FancyIterator:
                  batch_size: int,
                  split_size: int,
                  tokenizer: SpacyTokenizer,
+                 raw_ent_tokenizer: SimpleTokenizer,
+                 rel_tokenizer: SimpleTokenizer,
+                 ent_tokenizer: SimpleTokenizer,
                  splitting_keys: List[str],
                  truncate: bool = True,
                  instances_per_epoch: int = None,
@@ -61,32 +67,133 @@ class FancyIterator:
         self._batch_size = batch_size
 
         self.tokenizer = tokenizer
+        self.rel_tokenizer = rel_tokenizer
+        self.ent_tokenizer = ent_tokenizer
+        self.raw_ent_tokenizer = raw_ent_tokenizer
 
-    def _batch_convert_(self, batch: List[Dict]):
-        """ wrapper over self.vocab.batch_convert """
+    def _batch_convert_(self, batch: List[Instance], alias_database: AliasDatabase):
+        """
+            A lot of interesting things happen here.
+            We convert elements to tensors, for one.
+            Then we fit the data to exactly match what is required in model forward. That is,
 
-        # Go through all text fields in instance and convert them to nice crisp tensors
-        relevant_fields = ['source', 'target']
+                source: Dict[str, torch.Tensor],
+                    it has `words`. it might also have `mask`
+                target: Dict[str, torch.Tensor] = None,
+                    it has `words`. it might also have `mask`
+                reset: torch.Tensor,
+                metadata: List[Dict[str, Any]],
+                    Needs to be like
+                        metadata[0]['alias_database']
+                    so every data point needs a alias database field as well. oh well :shrug:
+                mention_type: torch.Tensor = None,
+                raw_entity_ids: Dict[str, torch.Tensor] = None,
+                entity_ids: Dict[str, torch.Tensor] = None,
+                parent_ids: Dict[str, torch.Tensor] = None,
+                relations: Dict[str, torch.Tensor] = None,
+                shortlist: Dict[str, torch.Tensor] = None,
+                shortlist_inds: torch.Tensor = None,
+                alias_copy_inds: torch.Tensor = None,
+        """
 
-        for field in relevant_fields:
+        bs = len(batch)
+        outputs = {'metadata': [{'alias_database'} for _ in range(bs)]}
 
-            # create a value column
-            values = [instance[field] for instance in batch]
+        # Fix source
+        source_values = [instance.source for instance in batch]
+        source_words = self.tokenizer.batch_convert(source_values, pad=True, to='torch')
+        outputs['source']: Dict[str, torch.Tensor] = {'words': source_words}
 
-            # Proc it
-            processed = self.tokenizer.batch_convert(values, pad=True, to='torch')
+        # Fix target
+        target_values = [instance.target for instance in batch]
+        target_words = self.tokenizer.batch_convert(target_values, pad=True, to='torch')
+        outputs['target']: Dict[str, torch.Tensor] = {'words': target_words}
 
-            # Put it back
-            for i, instance in enumerate(batch):
-                instance.__setattr__(field, processed[i])
+        # Fix raw entity IDs [60, 70]
+        raw_entity_values = [instance.raw_entities for instance in batch]
+        raw_entity_words = self.raw_ent_tokenizer.batch_convert(raw_entity_values, pad=True, to='torch')
+        outputs['raw_entity_ids']: Dict[str, torch.Tensor] = {'entity_ids': raw_entity_words}
 
-        return batch
+        # Fix entity IDs [60, 70]
+        entity_values = [instance.entities for instance in batch]
+        entity_words = self.ent_tokenizer.batch_convert(entity_values, pad=True, to='torch')
+        outputs['entity_ids']: Dict[str, torch.Tensor] = {'entity_ids': entity_words}
+
+        # Fix Relations. [60, 70, 10]
+        relations_values = [instance.relations for instance in batch]
+        relations_words = self.rel_tokenizer.batch_convert_3d(relations_values, pad=True, to='torch')
+        outputs['relations']: Dict[str, torch.Tensor] = {'relations': relations_words}
+
+        # Fix Parents. [60, 70, 10]
+        parents_values = [instance.parent_ids for instance in batch]
+        parents_words = self.rel_tokenizer.batch_convert_3d(parents_values, pad=True, to='torch')
+        outputs['parent_ids']: Dict[str, torch.Tensor] = {'entity_ids': parents_words}
+
+        # Fix shortlists (like entities)
+        shortlist_values = [instance.shortlist for instance in batch]
+        shortlist_words = self.ent_tokenizer.batch_convert(shortlist_values, pad=True, to='torch')
+        outputs['shortlist']: Dict[str, torch.Tensor] = {'entity_ids': shortlist_words}
+
+        # Fix shortlist indices
+        shortlist_ind_values = np.array([instance.shortlist_inds for instance in batch])
+        outputs['shortlist_inds']: torch.Tensor = torch.tensor(shortlist_ind_values)
+
+        # Fix reset
+        reset_values = np.array([instance.reset for instance in batch])
+        outputs['reset']: torch.ByteTensor = torch.tensor(reset_values, dtype=torch.uint8)
+
+        # Fix mention types
+        mention_type_values = np.array([instance.mention_type for instance in batch])
+        outputs['mention_type']: torch.Tensor = torch.tensor(mention_type_values)
+
+        # Fix shortlist indices
+        alias_copy_ind_values = np.array([instance.alias_copy_inds for instance in batch])
+        outputs['alias_copy_inds']: torch.Tensor = torch.tensor(alias_copy_ind_values)
+
+
+        #
+        # # Go through all text fields in instance and convert them to nice crisp tensors
+        # relevant_fields = ['source', 'target']
+        #
+        # for field in relevant_fields:
+        #
+        #     # create a value column
+        #     values = [instance.__getattribute__(field) for instance in batch]
+        #
+        #     # Proc it
+        #     processed = self.tokenizer.batch_convert(values, pad=True, to='torch')
+        #
+        #     # Put it back
+        #     for i, instance in enumerate(batch):
+        #         instance.__setattr__(field, processed[i])
+
+        # TODO: take care of devices etc
+
+        return outputs
 
     def __call__(self,
                  instances: Iterable[Instance],
+                 alias_database: AliasDatabase,
                  num_epochs: int = 1,
                  starting_epoch: int = 0,
                  shuffle: bool = False) -> Iterable[Dict]:
+        """
+
+        Parameters
+        ----------
+        instances: something like
+            EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl').load(LOC.lw2 / 'train.jsonl')
+            or alternatively, just a list of Instance object
+        alias_database: a reference to the alias database used above (or just a relevant alias database).
+            not used, only passed to model forward as a part of the batch
+        num_epochs
+        starting_epoch
+        shuffle
+
+        Returns
+        -------
+
+        """
 
         # In order to ensure that we are (almost) constantly streaming data to the model we
         # need to have all of the instances in memory ($$$)
@@ -109,7 +216,7 @@ class FancyIterator:
             # ensure each queue's length is roughly equal in size.
             queues: List[Deque[Dict]] = [deque() for _ in range(self._batch_size)]
             queue_lengths = np.zeros(self._batch_size, dtype=int)
-            for instance in tqdm(instance_list):
+            for instance in tqdm(instance_list, desc=f"Splitting {len(instance_list)} instances into chunks before batching"):
                 # Now we split the instance into chunks.
                 chunks, length = self._split_instance(instance.asdict())
 
@@ -138,9 +245,9 @@ class FancyIterator:
                 # # this pads and converts to torch tensors.
                 # # we could do both things here if needed
                 # yield batch.as_tensor_dict(padding_lengths), 1
-                yield self._batch_convert_(batch)
+                yield self._batch_convert_(batch, alias_database=alias_database)
 
-    def _split_instance(self, instance: Dict) -> Tuple[List[Dict], int]:
+    def _split_instance(self, instance: Dict) -> Tuple[List[Instance], int]:
         """Splits one document into multiple batches. That's it. That's all that's happening here."""
 
         # Determine the size of the sequence inside the instance.
@@ -160,7 +267,7 @@ class FancyIterator:
         constant_fields = [x for x in instance.keys() if x not in self._splitting_keys]
 
         # Create the list of chunks
-        chunks: List[Dict] = []
+        chunks: List = []
 
         for i, (start, end) in enumerate(zip(split_indices[:-1], split_indices[1:])):
 
@@ -181,6 +288,26 @@ class FancyIterator:
                 chunk_fields[key] = split_field
             chunks.append(chunk_fields)
 
+        # Time to convert these chunks back to instances
+
+        relevant_fields = [field.name for field in fields(Instance)]
+        for i, chunk in enumerate(chunks):
+            inst = Instance(
+                source=chunk['source'],
+                target=chunk['target'],
+                entities=chunk['entities'],
+                relations=chunk['relations'],
+                raw_entities=chunk['raw_entities'],
+                parent_ids=chunk['parent_ids'],
+                shortlist=chunk['shortlist'],
+                reverse_shortlist=chunk['reverse_shortlist'],
+                shortlist_inds=chunk['shortlist_inds'],
+                mention_type=chunk['mention_type'],
+                alias_copy_inds=chunk['alias_copy_inds']
+            )
+            inst.reset = chunk['reset']
+            chunks[i] = inst
+
         return chunks, padded_length
 
     def _generate_batches(
@@ -190,6 +317,18 @@ class FancyIterator:
         num_iter = max(len(q) for q in queues)
         for _ in range(num_iter):
             instances: List[Instance] = []
+
+            """
+                For every queue, take one (leftmost) instance at a time and make a batch out of it.
+                For the first example:
+                    there are 10 queues
+                    initially each has [3114, 2996, 3007, 2998, 3014, 3078, 3017, 3033, 2994, 2992] instances
+                    we run an interator 3114 times and each time take one instance out of each queue 
+                        (when queues are depleted, we sub in the blank instance (IF WE ARE EVALUATING))
+                        (IF WE ARE TRAINING, we stop as soon as the first queue is dead)                     
+            """
+            #
+            #
             for q in queues:
                 try:
                     instance = q.popleft()
@@ -214,17 +353,28 @@ if __name__ == '__main__':
     # Lets try and ge the datareader to work
     ds = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')
 
-    # Pull a vocab
-    vocab = Vocab.load(LOC.vocab / 'tokens.txt')
+    # Pull the vocabs
+    tokens_vocab = Vocab.load(LOC.vocab / 'tokens.txt')
+    ent_vocab = Vocab.load(LOC.vocab / 'entity_ids.txt')
+    rel_vocab = Vocab.load(LOC.vocab / 'relations.txt')
+    raw_ent_vocab = Vocab.load(LOC.vocab / 'raw_entity_ids.txt')
 
     # Get the vocab and give it to spacy tokenizer.
-    tokenizer = SpacyTokenizer(vocab=vocab, pretokenized=True)
+    tokenizer = SpacyTokenizer(vocab=tokens_vocab, pretokenized=True)
+
+    # Make other vocabs
+    ent_tokenizer = SimpleTokenizer(vocab=ent_vocab)
+    rel_tokenizer = SimpleTokenizer(vocab=rel_vocab)
+    raw_ent_tokenizer = SimpleTokenizer(vocab=raw_ent_vocab)
 
     # Now make a dataiter to work with it.
     di = FancyIterator(
         batch_size=10,
         split_size=70,
         tokenizer=tokenizer,
+        rel_tokenizer=rel_tokenizer,
+        ent_tokenizer=ent_tokenizer,
+        raw_ent_tokenizer=raw_ent_tokenizer,
         splitting_keys=[
             "source",
             "target",
@@ -237,7 +387,7 @@ if __name__ == '__main__':
             "alias_copy_inds"
         ])
 
-    for x in di(ds.load(LOC.lw2 / 'train.jsonl')):
+    for x in di(ds.load(LOC.lw2 / 'train.jsonl'), alias_database=ds.alias_database):
         print(x)
         print('potato')
         break
