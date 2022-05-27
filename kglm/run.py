@@ -58,7 +58,7 @@ def main():
     MODEL_PARAMS = {
         "ent_vocab": ent_vocab,
         "rel_vocab": rel_vocab,
-        "raw_ent_vocab": raw_ent_tokenizer,
+        "raw_ent_vocab": raw_ent_vocab,
         "tokens_vocab": tokens_vocab,
         "token_embedder": Embedding(4, 400),
         "entity_embedder": Embedding(4, 256),
