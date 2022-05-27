@@ -154,7 +154,7 @@ class Tokenizer(ABC):
         max_depth = max(max(len(x) for x in instance) for instance in texts)
         outputs = []
         for instance in texts:
-            outputs.append(self.batch_convert(texts, pad=True, to='torch', max_len=max_depth))
+            outputs.append(self.batch_convert(instance, pad=True, to='torch', max_len=max_depth))
 
         return torch.stack(outputs, dim=0)
 
