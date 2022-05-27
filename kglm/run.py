@@ -95,8 +95,8 @@ def main():
 
     # See if the dataset works
     for x in di(ds.load(LOC.lw2 / 'train.jsonl'), alias_database=ds.alias_database):
-        print(x)
-        print('potato')
+        # print(x)
+        # print('potato')
         model(**x)
         break
 
