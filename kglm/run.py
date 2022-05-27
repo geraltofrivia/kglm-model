@@ -64,7 +64,7 @@ def main():
         "entity_embedder": Embedding(4, 256),
         "relation_embedder": Embedding(4, 256),
         "alias_encoder": LSTM(input_size=400, hidden_size=400, num_layers=3),
-        "knowledge_graph_path": "data/linked-wikitext-2/knowledge_graph.pkl",
+        "knowledge_graph_path": str(LOC.lw2 / "knowledge_graph.pkl"),
         "use_shortlist": False,
         "hidden_size": 1150,
         "num_layers": 3,
@@ -74,24 +74,24 @@ def main():
     # Initialize KGLM
     model = Kglm(**MODEL_PARAMS)
 
-    # forward pass
-    MODEL_ARGS = {
-        "source": Dict[str, torch.Tensor],
-        "reset": torch.Tensor,
-        "metadata": List[Dict[str, Any]],
-        "target": Dict[str, torch.Tensor],
-        "alias_database": AliasDatabase,
-        "mention_type": torch.Tensor,
-        "raw_entity_ids": Dict[str, torch.Tensor],
-        "entity_ids": Dict[str, torch.Tensor],
-        "parent_ids": Dict[str, torch.Tensor],
-        "relations": Dict[str, torch.Tensor],
-        "shortlist": Dict[str, torch.Tensor],
-        "shortlist_inds": torch.Tensor,
-        "alias_copy_inds": torch.Tensor
-    }
-
-    outputs = model(**MODEL_ARGS)
+    # # forward pass
+    # MODEL_ARGS = {
+    #     "source": Dict[str, torch.Tensor],
+    #     "reset": torch.Tensor,
+    #     "metadata": List[Dict[str, Any]],
+    #     "target": Dict[str, torch.Tensor],
+    #     "alias_database": AliasDatabase,
+    #     "mention_type": torch.Tensor,
+    #     "raw_entity_ids": Dict[str, torch.Tensor],
+    #     "entity_ids": Dict[str, torch.Tensor],
+    #     "parent_ids": Dict[str, torch.Tensor],
+    #     "relations": Dict[str, torch.Tensor],
+    #     "shortlist": Dict[str, torch.Tensor],
+    #     "shortlist_inds": torch.Tensor,
+    #     "alias_copy_inds": torch.Tensor
+    # }
+    #
+    # outputs = model(**MODEL_ARGS)
 
     # See if the dataset works
     for x in di(ds.load(LOC.lw2 / 'train.jsonl'), alias_database=ds.alias_database):
