@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 # AllenNLP imports
 from allennlp.data.vocabulary import Vocabulary
-# from allennlp.modules import TextFieldEmbedder
+from allennlp.modules import TextFieldEmbedder
 from allennlp.modules import Seq2SeqEncoder
 from allennlp.models import Model
 from allennlp.nn import InitializerApplicator
@@ -92,14 +92,12 @@ class Kglm(Module):
         # We extract the `Embedding` layers from the `TokenEmbedders` to apply dropout later on.
         # pylint: disable=protected-access
 
-        # assume we have 1 input text with the following ids:
-        input_ids = torch.LongTensor([0, 1, 2, 3])
         # self._token_embedder = token_embedder._token_embedders['tokens']
         # self._entity_embedder = entity_embedder._token_embedders['entity_ids']
         # self._relation_embedder = relation_embedder._token_embedders['relations']
-        self._token_embedder = token_embedder(input_ids)
-        self._entity_embedder = entity_embedder(input_ids)
-        self._relation_embedder = relation_embedder(input_ids)
+        self._token_embedder = token_embedder(torch.LongTensor(list(range(len(tokens_vocab)))))
+        self._entity_embedder = entity_embedder(torch.LongTensor(list(range(len(ent_vocab)))))
+        self._relation_embedder = relation_embedder(torch.LongTensor(list(range(len(rel_vocab)))))
         self._alias_encoder = alias_encoder
         self._recent_entities = RecentEntities(cutoff=cutoff)
         self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path,
@@ -445,7 +443,7 @@ class Kglm(Module):
 
         # Tensorize the alias_database - this will only perform the operation once.
         alias_database = metadata[0]['alias_database']
-        alias_database.tensorize(vocab=self.vocab)
+        # alias_database.tensorize(vocab=self.vocab)
 
         # Reset the model if needed
         if reset.any() and (self._state is not None):
@@ -496,12 +494,16 @@ class Kglm(Module):
         # Get the token mask and extract indexed text fields.
         # shape: (batch_size, sequence_length)
         target_mask = get_text_field_mask(source)
-        source = source['tokens']
-        raw_entity_ids = raw_entity_ids['raw_entity_ids']
+        # source = source['tokens']
+        source = source['words']
+        # raw_entity_ids = raw_entity_ids['raw_entity_ids']
+        raw_entity_ids = raw_entity_ids['entity_ids']
         entity_ids = entity_ids['entity_ids']
         parent_ids = parent_ids['entity_ids']
         if target is not None:
-            target = target['tokens']
+            # target = target['tokens']
+            target = target['words']
+
 
         # Embed source tokens.
         # shape: (batch_size, sequence_length, embedding_dim)
@@ -896,7 +898,11 @@ class Kglm(Module):
         indices, parent_ids_list, relations_list, tail_ids_list = self._knowledge_graph_lookup(parent_ids)
 
         # Embed relations
-        relation_embeddings = [self._relation_embedder(r) for r in relations_list]
+        # relation_embeddings = [self._relation_embedder(r) for r in relations_list]
+        '''
+        self._relation_embedder: (6756x256) but relations_list: (6866)
+        '''
+        relation_embeddings = self._relation_embedder
 
         # Logits are computed using a general bilinear form that measures the similarity between
         # the projected hidden state and the embeddings of relations
@@ -910,6 +916,7 @@ class Kglm(Module):
             # First we compute the score for each relation w.r.t the current encoding, and convert
             # the scores to log-probabilities
             logits = torch.mv(relation_embedding, encoded[index[:-1]])
+            ''' RuntimeError: vector + matrix @ vector expected, got 1, 1, 1'''
             # logger.debug('Relation logits shape: %s', logits.shape)
             log_probs = F.log_softmax(logits, dim=-1)
 

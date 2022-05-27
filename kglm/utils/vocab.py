@@ -106,3 +106,6 @@ if __name__ == '__main__':
     encoded = vocab.encode(sent)
     print(vocab.decode(encoded))
     print(len(vocab))
+
+    all_ids = list(vocab.tok_to_id.values())
+    tensor = torch.LongTensor(all_ids)

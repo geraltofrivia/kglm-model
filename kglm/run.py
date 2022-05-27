@@ -1,7 +1,7 @@
 """A run file which should get everything sorted, ideally"""
 
 # Global imports
-from typing import Dict, List,Any
+from typing import Dict, List, Any
 from torch.nn import Embedding, LSTM
 import torch
 
@@ -60,9 +60,9 @@ def main():
         "rel_vocab": rel_vocab,
         "raw_ent_vocab": raw_ent_vocab,
         "tokens_vocab": tokens_vocab,
-        "token_embedder": Embedding(4, 400),
-        "entity_embedder": Embedding(4, 256),
-        "relation_embedder": Embedding(4, 256),
+        "token_embedder": Embedding(len(tokens_vocab), 400),
+        "entity_embedder": Embedding(len(ent_vocab), 256),
+        "relation_embedder": Embedding(len(rel_vocab), 256),
         "alias_encoder": LSTM(input_size=400, hidden_size=400, num_layers=3),
         "knowledge_graph_path": str(LOC.lw2 / "knowledge_graph.pkl"),
         "use_shortlist": False,
