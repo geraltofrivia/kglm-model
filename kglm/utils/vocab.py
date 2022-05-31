@@ -22,19 +22,24 @@ class Vocab:
         self._name: str = name if name is not None else ''
         self._filename: Optional[Path] = Path(filename) if filename is not None else None
 
-        # TODO: add padding things first and then something else
         # Check if padding token appears normally in the vocab. If not, prepend it to the vocab
+        # TODO: may be the vocab should not be forcefully prepended. Check down the line if changing this helps
+
+        specials = []
+
         if DEFAULT_PAD_TOKEN not in vocab:
-            vocab = [DEFAULT_PAD_TOKEN] + vocab
+            specials += [DEFAULT_PAD_TOKEN]
 
         if DEFAULT_UNK_TOKEN not in vocab:
-            vocab = [DEFAULT_UNK_TOKEN] + vocab
+            specials += [DEFAULT_UNK_TOKEN]
 
         if DEFAULT_BOS_TOKEN not in vocab:
-            vocab = [DEFAULT_BOS_TOKEN] + vocab
+            specials += [DEFAULT_BOS_TOKEN]
 
         if DEFAULT_EOS_TOKEN not in vocab:
-            vocab = [DEFAULT_EOS_TOKEN] + vocab
+            specials += [DEFAULT_EOS_TOKEN]
+
+        vocab = specials + vocab
 
         self.tok_to_id: Dict[str, int] = {tok: i for i, tok in enumerate(vocab)}
         self.id_to_tok: List[str] = vocab
