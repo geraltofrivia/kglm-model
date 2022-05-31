@@ -16,27 +16,36 @@ class Vocab:
             self,
             vocab: List[str],
             filename: Optional[Union[str, Path]],
+            skip_eos: bool = False,
+            skip_pad: bool = False,
+            skip_bos: bool = False,
+            skip_unk: bool = False,
             name: str = None):
 
         # Store some metadata
         self._name: str = name if name is not None else ''
         self._filename: Optional[Path] = Path(filename) if filename is not None else None
 
+        self._skip_pad = skip_pad
+        self._skip_unk = skip_unk
+        self._skip_bos = skip_bos
+        self._skip_eos = skip_eos
+
         # Check if padding token appears normally in the vocab. If not, prepend it to the vocab
         # TODO: may be the vocab should not be forcefully prepended. Check down the line if changing this helps
 
         specials = []
 
-        if DEFAULT_PAD_TOKEN not in vocab:
+        if DEFAULT_PAD_TOKEN not in vocab and not skip_pad:
             specials += [DEFAULT_PAD_TOKEN]
 
-        if DEFAULT_UNK_TOKEN not in vocab:
+        if DEFAULT_UNK_TOKEN not in vocab and not skip_unk:
             specials += [DEFAULT_UNK_TOKEN]
 
-        if DEFAULT_BOS_TOKEN not in vocab:
+        if DEFAULT_BOS_TOKEN not in vocab and not skip_bos:
             specials += [DEFAULT_BOS_TOKEN]
 
-        if DEFAULT_EOS_TOKEN not in vocab:
+        if DEFAULT_EOS_TOKEN not in vocab and not skip_eos:
             specials += [DEFAULT_EOS_TOKEN]
 
         vocab = specials + vocab
@@ -44,14 +53,30 @@ class Vocab:
         self.tok_to_id: Dict[str, int] = {tok: i for i, tok in enumerate(vocab)}
         self.id_to_tok: List[str] = vocab
 
-        # Now to define some special chars that will come in handy
-        self.pad = self.tok_to_id[DEFAULT_PAD_TOKEN]
-        self.unk = self.tok_to_id[DEFAULT_UNK_TOKEN]
-
         print(f"A vocab: {name} with {len(self.tok_to_id)} elements ready to go!")
 
+    @property
+    def pad(self):
+        try:
+            return self.tok_to_id[DEFAULT_PAD_TOKEN]
+        except KeyError as e:
+            if self._skip_pad:
+                raise ValueError("We were specified to not make way for the pad token")
+            else:
+                raise e
+
+    @property
+    def unk(self):
+        try:
+            return self.tok_to_id[DEFAULT_UNK_TOKEN]
+        except KeyError as e:
+            if self._skip_pad:
+                raise ValueError("We were specified to not make way for the unk token")
+            else:
+                raise e
+
     @classmethod
-    def load(cls, file: Path, name: Optional[str] = None):
+    def load(cls, file: Path, name: Optional[str] = None, *args, **kwargs):
         """ A generator which returns a Vocab object. If name is not provided, it is inferred."""
 
         name = file.name if name is None else name
@@ -59,7 +84,7 @@ class Vocab:
         with file.open('r') as f:
             vocab = [x for x in f.read().splitlines() if x.strip() != '']
 
-        return cls(name=name, filename=file, vocab=vocab)
+        return cls(*args, name=name, filename=file, vocab=vocab, **kwargs)
 
     def __getitem__(self, item):
         return self.tok_to_id[item]

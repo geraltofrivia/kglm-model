@@ -22,9 +22,9 @@ def main():
 
     # Pull the vocabs
     tokens_vocab = Vocab.load(LOC.vocab / 'tokens.txt')
-    ent_vocab = Vocab.load(LOC.vocab / 'entity_ids.txt')
-    rel_vocab = Vocab.load(LOC.vocab / 'relations.txt')
-    raw_ent_vocab = Vocab.load(LOC.vocab / 'raw_entity_ids.txt')
+    ent_vocab = Vocab.load(LOC.vocab / 'entity_ids.txt', skip_bos=True, skip_eos=True)
+    rel_vocab = Vocab.load(LOC.vocab / 'relations.txt', skip_bos=True, skip_eos=True)
+    raw_ent_vocab = Vocab.load(LOC.vocab / 'raw_entity_ids.txt', skip_bos=True, skip_eos=True)
 
     # Get the vocab and give it to spacy tokenizer.
     tokenizer = SpacyTokenizer(vocab=tokens_vocab, pretokenized=True)
