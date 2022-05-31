@@ -59,7 +59,7 @@ class KnowledgeGraphLookup:
             all_relations.append(relations)
             all_tail_ids.append(tail_ids)
 
-            # TODO: you need tensors here !?
+        # TODO: you need tensors here !?
         return all_relations, all_tail_ids
 
     def __call__(self,
@@ -86,21 +86,39 @@ class KnowledgeGraphLookup:
         tail_ids : ``torch.LongTensor``
             A tensor of shape `(N, *, K)` containing the corresponding tail ids.
         """
+
         # Collect the information to load into the output tensors.
         indices: List[Tuple[int, ...]] = []
         parent_ids_list: List[torch.LongTensor] = []
         relations_list: List[torch.LongTensor] = []
         tail_ids_list: List[torch.LongTensor] = []
+
+        # i = 0
+        # j = 0
         for *inds, parent_id in nested_enumerate(parent_ids):
             # Retrieve data
+            # i += 1
             relations = self._relations[parent_id]
             tail_ids = self._tail_ids[parent_id]
             if relations is None:
+                # j += 1
                 continue
             # Add to lists
             indices.append(tuple(inds))
             parent_ids_list.append(parent_id)
             relations_list.append(relations.to(device=parent_ids.device))
             tail_ids_list.append(tail_ids.to(device=parent_ids.device))
+
+        # print("loop is run ", i, " times")      # 42000
+        # print("times skipped ", j)
+        # print("parent IDs ", parent_ids.shape)  # 60, 70, 10
+        # print("indices len", len(indices))      #
+        # # print(indices[0])
+        # print("parent_ids_list: ", len(parent_ids_list), parent_ids_list[0].shape)
+        # # print(parent_ids_list[0])
+        # print("relations: ", len(relations_list), relations_list[0].shape)
+        # # print(relations_list[0])
+        # print("tail_ids_list", len(tail_ids_list), tail_ids_list[0].shape)
+        # # print(tail_ids_list[0])
 
         return indices, parent_ids_list, relations_list, tail_ids_list
