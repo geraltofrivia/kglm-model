@@ -22,30 +22,28 @@ class Vocab:
         self._name: str = name if name is not None else ''
         self._filename: Optional[Path] = Path(filename) if filename is not None else None
 
+        # TODO: add padding things first and then something else
+        # Check if padding token appears normally in the vocab. If not, prepend it to the vocab
+        if DEFAULT_PAD_TOKEN not in vocab:
+            vocab = [DEFAULT_PAD_TOKEN] + vocab
+
+        if DEFAULT_UNK_TOKEN not in vocab:
+            vocab = [DEFAULT_UNK_TOKEN] + vocab
+
+        if DEFAULT_BOS_TOKEN not in vocab:
+            vocab = [DEFAULT_BOS_TOKEN] + vocab
+
+        if DEFAULT_EOS_TOKEN not in vocab:
+            vocab = [DEFAULT_EOS_TOKEN] + vocab
+
         self.tok_to_id: Dict[str, int] = {tok: i for i, tok in enumerate(vocab)}
         self.id_to_tok: List[str] = vocab
-        print(f"A vocab: {name} with {len(self.tok_to_id)} elements ready to go!")
 
         # Now to define some special chars that will come in handy
+        self.pad = self.tok_to_id[DEFAULT_PAD_TOKEN]
         self.unk = self.tok_to_id[DEFAULT_UNK_TOKEN]
-        try:
-            self.pad = self.tok_to_id[DEFAULT_PAD_TOKEN]
-        except KeyError:
-            self.id_to_tok.append(DEFAULT_PAD_TOKEN)
-            self.tok_to_id[DEFAULT_PAD_TOKEN] = len(self.tok_to_id)
-            self.pad = self.tok_to_id[DEFAULT_PAD_TOKEN]
-        try:
-            self.bos = self.tok_to_id[DEFAULT_BOS_TOKEN]
-        except KeyError:
-            self.id_to_tok.append(DEFAULT_BOS_TOKEN)
-            self.tok_to_id[DEFAULT_BOS_TOKEN] = len(self.tok_to_id)
-            self.pad = self.tok_to_id[DEFAULT_BOS_TOKEN]
-        try:
-            self.eos = self.tok_to_id[DEFAULT_EOS_TOKEN]
-        except KeyError:
-            self.id_to_tok.append(DEFAULT_EOS_TOKEN)
-            self.tok_to_id[DEFAULT_EOS_TOKEN] = len(self.tok_to_id)
-            self.pad = self.tok_to_id[DEFAULT_EOS_TOKEN]
+
+        print(f"A vocab: {name} with {len(self.tok_to_id)} elements ready to go!")
 
     @classmethod
     def load(cls, file: Path, name: Optional[str] = None):
@@ -54,7 +52,7 @@ class Vocab:
         name = file.name if name is None else name
 
         with file.open('r') as f:
-            vocab = f.read().splitlines()
+            vocab = [x for x in f.read().splitlines() if x.strip() != '']
 
         return cls(name=name, filename=file, vocab=vocab)
 
