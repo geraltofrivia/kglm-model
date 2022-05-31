@@ -97,7 +97,7 @@ class Kglm(Module):
         # self._relation_embedder = relation_embedder._token_embedders['relations']
         self._token_embedder = token_embedder(torch.LongTensor(list(range(len(tokens_vocab)))))
         self._entity_embedder = entity_embedder(torch.LongTensor(list(range(len(ent_vocab)))))
-        self._relation_embedder = relation_embedder(torch.LongTensor(list(range(len(rel_vocab)))))
+        self._relation_embedder = relation_embedder #(torch.LongTensor(list(range(len(rel_vocab)))))
         self._alias_encoder = alias_encoder
         self._recent_entities = RecentEntities(cutoff=cutoff)
         self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path,
@@ -898,11 +898,8 @@ class Kglm(Module):
         indices, parent_ids_list, relations_list, tail_ids_list = self._knowledge_graph_lookup(parent_ids)
 
         # Embed relations
-        # relation_embeddings = [self._relation_embedder(r) for r in relations_list]
-        '''
-        self._relation_embedder: (6756x256) but relations_list: (6866)
-        '''
-        relation_embeddings = self._relation_embedder
+        relation_embeddings = [self._relation_embedder(r) for r in relations_list]
+        # relation_embeddings = self._relation_embedder
 
         # Logits are computed using a general bilinear form that measures the similarity between
         # the projected hidden state and the embeddings of relations
