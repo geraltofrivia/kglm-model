@@ -8,7 +8,8 @@ from typing import Dict, Set, Any, List, Tuple
 
 # Allennlp imports
 # TODO: get rid of it later.
-from allennlp.data import Vocabulary
+# from allennlp.data import Vocabulary
+from utils.vocab import Vocab
 from tokenizer import SpacyTokenizer
 
 
@@ -117,7 +118,7 @@ class AliasDatabase:
         return 0
 
     # noinspection PyTypeChecker
-    def tensorize(self, vocab: Vocabulary):
+    def tensorize(self, raw_ent_vocab: Vocab, tokens_vocab: Vocab, ent_vocab: Vocab):
         """
         Creates a list of tensors from the alias lookup.
 
@@ -131,16 +132,21 @@ class AliasDatabase:
         if self.is_tensorized:
             return
 
-        logger.debug('Converting AliasDatabase to tensors')
+        print('Converting AliasDatabase to tensors')
 
-        entity_idx_to_token = vocab.get_index_to_token_vocabulary('raw_entity_ids')
-        for i in range(len(entity_idx_to_token)):  # pylint: disable=C0200
-            entity = entity_idx_to_token[i]
+        # entity_idx_to_token = vocab.get_index_to_token_vocabulary('raw_entity_ids')
+
+        for i in range(len(raw_ent_vocab)):  # pylint: disable=C0200
+            entity = raw_ent_vocab.id_to_tok[i]
             try:
                 tokenized_aliases = self.token_lookup[entity]
             except KeyError:
                 # If we encounter non-entity tokens (e.g. padding and null) then just add
                 # a blank placeholder - these should not be encountered during training.
+
+                # TODO: raw entity ID has properties (P10 ...) in it. But these don't occur in token lookup
+                # is it okay to skip them as well?
+
                 self.global_id_lookup.append(None)
                 self.local_id_lookup.append(None)
                 continue
@@ -153,7 +159,7 @@ class AliasDatabase:
             for j, tokenized_alias in enumerate(tokenized_aliases):
                 for k, token in enumerate(tokenized_alias):
                     # WARNING: Extremely janky cast to string
-                    global_id_tensor[j, k] = vocab.get_token_index(str(token), 'tokens')
+                    global_id_tensor[j, k] = tokens_vocab.get(str(token), tokens_vocab.unk)
             self.global_id_lookup.append(global_id_tensor)
 
             # Convert array of local alias token indices into a tensor
@@ -164,24 +170,25 @@ class AliasDatabase:
         # Build the tensorized token -> potential entities lookup.
         # NOTE: Initial approach will be to store just the necessary info to build one-hot vectors
         # on the fly since storing them will probably be way too expensive.
-        token_idx_to_token = vocab.get_index_to_token_vocabulary('tokens')
-        for i in range(len(token_idx_to_token)):
-            token = token_idx_to_token[i]
+        for token in tokens_vocab.id_to_tok:
+            # token = token_idx_to_token[i]
             try:
                 potential_entities = self.token_to_entity_lookup[token]
             except KeyError:
                 self.token_id_to_entity_id_lookup.append(None)
             else:
+                # TODO: figure out what do they do with unknowns? Do unknowns exist here in this tensor?
+                # Like there's an literal in the entities. What to do with it? Ignore it, or encode it?
                 potential_entity_ids = torch.tensor(
-                    [vocab.get_token_index(str(x), 'entity_ids') for x in potential_entities],
+                    ent_vocab.encode(potential_entities, ignore_unknowns=True),
                     dtype=torch.int64,
                     requires_grad=False)
                 self.token_id_to_entity_id_lookup.append(potential_entity_ids)
-        self._num_entities = vocab.get_vocab_size('entity_ids')  # Needed to get one-hot vector length
+        self._num_entities = len(ent_vocab)  # Needed to get one-hot vector length
 
         self.is_tensorized = True
 
-        logger.debug('Done converting AliasDatabase data to tensors.')
+        print('Done converting AliasDatabase data to tensors.')
 
     # noinspection PyArgumentList
     def lookup(self, entity_ids: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:

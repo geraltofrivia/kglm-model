@@ -102,12 +102,16 @@ class Vocab:
 
         return self.get(token, self.unk)
 
-    def encode(self, seq: Union[str, List[str]], allow_unknowns: bool = True, return_type: Optional[str] = None):
+    def encode(self, seq: Union[str, List[str]], allow_unknowns: bool = True, ignore_unknowns: bool = False,
+               return_type: Optional[str] = None):
         if type(seq) is str:
             ids = self._encode_token_(seq, allow_unknowns=allow_unknowns)
         else:
             # Its an actual sequence
             ids = [self._encode_token_(token, allow_unknowns=allow_unknowns) for token in seq]
+
+        if ignore_unknowns:
+            ids = [id for id in ids if id != self.unk]
 
         if return_type == 'torch':
             return torch.tensor(ids, dtype=torch.int64)

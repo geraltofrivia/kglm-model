@@ -97,13 +97,20 @@ class Kglm(Module):
         # self._relation_embedder = relation_embedder._token_embedders['relations']
         self._token_embedder = token_embedder(torch.LongTensor(list(range(len(tokens_vocab)))))
         self._entity_embedder = entity_embedder(torch.LongTensor(list(range(len(ent_vocab)))))
-        self._relation_embedder = relation_embedder #(torch.LongTensor(list(range(len(rel_vocab)))))
+        self._relation_embedder = relation_embedder # (torch.LongTensor(list(range(len(rel_vocab)))))
         self._alias_encoder = alias_encoder
         self._recent_entities = RecentEntities(cutoff=cutoff)
         self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path,
                                                                     ent_vocab,
                                                                     rel_vocab,
                                                                     raw_ent_vocab)
+
+        # Lets keep the vocab here. They'll come in handy.
+        self.rel_vocab = rel_vocab
+        self.ent_vocab = ent_vocab
+        self.tokens_vocab = tokens_vocab
+        self.raw_ent_vocab = raw_ent_vocab
+
         self._use_shortlist = use_shortlist
         self._hidden_size = hidden_size
         self._num_layers = num_layers
@@ -331,7 +338,10 @@ class Kglm(Module):
                **kwargs):
         # Tensorize the alias_database - this will only perform the operation once.
         alias_database = metadata[0]['alias_database']
-        alias_database.tensorize(vocab=self.vocab)
+        alias_database.tensorize(
+            raw_ent_vocab=self.raw_ent_vocab,
+            tokens_vocab=self.tokens_vocab
+        )
 
         # Reset
         if reset.any() and (self._state is not None):
@@ -443,7 +453,11 @@ class Kglm(Module):
 
         # Tensorize the alias_database - this will only perform the operation once.
         alias_database = metadata[0]['alias_database']
-        # alias_database.tensorize(vocab=self.vocab)
+        alias_database.tensorize(
+            raw_ent_vocab=self.raw_ent_vocab,
+            tokens_vocab=self.tokens_vocab,
+            ent_vocab=self.ent_vocab
+        )
 
         # Reset the model if needed
         if reset.any() and (self._state is not None):

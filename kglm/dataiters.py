@@ -215,6 +215,10 @@ class FancyIterator:
             # ensure each queue's length is roughly equal in size.
             queues: List[Deque[Dict]] = [deque() for _ in range(self._batch_size)]
             queue_lengths = np.zeros(self._batch_size, dtype=int)
+
+            # TODO: REMOVE THIS SUPER URGENTLY!!!!!
+            instance_list = instance_list[:50]
+
             for instance in tqdm(instance_list,
                                  desc=f"Splitting {len(instance_list)} instances into chunks before batching"):
                 # Now we split the instance into chunks.
