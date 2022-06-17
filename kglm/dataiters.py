@@ -1,5 +1,5 @@
 """
-    Datareaders read from disk and maybe preproc.
+    Data readers read from disk and maybe preproc.
     Dataiters batch it and make it training friendly.
 
     This is 2022. Keep up.
@@ -32,6 +32,7 @@ class FancyIterator:
             and makes them ready for training (encapsulated in AllenNLP gunk but we can take care of that)...
     """
 
+    # noinspection PyUnusedLocal
     def __init__(self,
                  batch_size: int,
                  split_size: int,
@@ -150,8 +151,6 @@ class FancyIterator:
         alias_copy_ind_values = np.array([instance.alias_copy_inds for instance in batch])
         outputs['alias_copy_inds']: torch.Tensor = torch.tensor(alias_copy_ind_values)
 
-
-        #
         # # Go through all text fields in instance and convert them to nice crisp tensors
         # relevant_fields = ['source', 'target']
         #
@@ -207,7 +206,7 @@ class FancyIterator:
 
         epochs = range(starting_epoch, starting_epoch + num_epochs)
 
-        for epoch in epochs:
+        for _ in epochs:
 
             if shuffle:
                 random.shuffle(instance_list)
@@ -216,7 +215,8 @@ class FancyIterator:
             # ensure each queue's length is roughly equal in size.
             queues: List[Deque[Dict]] = [deque() for _ in range(self._batch_size)]
             queue_lengths = np.zeros(self._batch_size, dtype=int)
-            for instance in tqdm(instance_list, desc=f"Splitting {len(instance_list)} instances into chunks before batching"):
+            for instance in tqdm(instance_list,
+                                 desc=f"Splitting {len(instance_list)} instances into chunks before batching"):
                 # Now we split the instance into chunks.
                 chunks, length = self._split_instance(instance.asdict())
 
@@ -237,7 +237,7 @@ class FancyIterator:
 
             for batch in self._generate_batches(queues, blank_instance):
                 # if self.vocab is not None:
-                #     # This changes text fields into vocabbed ints
+                #     # This changes text fields into vocabularized ints
                 #     # batch.index_instances(self.vocab)
                 #     batch = self.vocab.batch_tokenize(batch)
                 #
@@ -313,7 +313,7 @@ class FancyIterator:
     def _generate_batches(
             self,
             queues: List[Deque[Dict]],
-            blank_instance: Instance) -> List[Dict]:
+            blank_instance: Instance) -> List[List[Instance]]:
         num_iter = max(len(q) for q in queues)
         for _ in range(num_iter):
             instances: List[Instance] = []
@@ -346,7 +346,8 @@ class FancyIterator:
 
     @staticmethod
     def get_num_batches(instances: Iterable[Instance]) -> float:
-        return 0
+        raise NotImplementedError
+        # return 0
 
 
 if __name__ == '__main__':
