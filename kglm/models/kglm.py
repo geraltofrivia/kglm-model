@@ -1088,7 +1088,9 @@ class Kglm(Module):
         # Unknown penalty - only applies to non-copied unks
         true_unks = unks.squeeze() & ~copied.squeeze() & flattened_mask
         penalized_log_probs = combined_log_probs_extended_vocab - self._unk_penalty * true_unks.float()
-        penalized_log_probs[~flattened_mask] = 0
+        # penalized_log_probs[~flattened_mask] = 0
+        penalized_log_probs[~(flattened_mask.to(bool))] = 0
+
         penalized_vocab_loss = -penalized_log_probs.sum() / (mask.sum() + 1e-13)
 
         # PERPLEXITY ###
@@ -1099,7 +1101,9 @@ class Kglm(Module):
                                                     dim=1)
         combined_log_probs_source_vocab = torch.logsumexp(combined_log_probs_source_vocab,
                                                           dim=1)
-        combined_log_probs_extended_vocab[~flattened_mask] = 0
+        # combined_log_probs_extended_vocab[~flattened_mask] = 0
+        combined_log_probs_extended_vocab[~(flattened_mask.to(bool))] = 0
+
 
         # For UPP we penalize **only** p(UNK); not the copy probabilities!
         penalized_log_probs_source_vocab = generate_log_probs_source_vocab - self._unk_penalty * unks.float()
@@ -1108,11 +1112,13 @@ class Kglm(Module):
                                                      dim=1)
         penalized_log_probs_source_vocab = torch.logsumexp(penalized_log_probs_source_vocab,
                                                            dim=1)
-        combined_log_probs_extended_vocab[~flattened_mask] = 0
+        # combined_log_probs_extended_vocab[~flattened_mask] = 0
+        combined_log_probs_extended_vocab[~(flattened_mask.to(bool))] = 0
 
-        kg_mask = (mention_mask & mask.byte()).view(-1)
-        bg_mask = ((~mention_mask) & mask.byte()).view(-1)
-        mask = (kg_mask | bg_mask)
+
+        kg_mask = (mention_mask & mask.byte()).view(-1).to(bool)
+        bg_mask = ((~mention_mask) & mask.byte()).view(-1).to(bool)
+        mask = (kg_mask | bg_mask).to(bool)
 
         self._ppl(-combined_log_probs_source_vocab[mask].sum(), mask.float().sum() + 1e-13)
         self._upp(-penalized_log_probs_source_vocab[mask].sum(), mask.float().sum() + 1e-13)
