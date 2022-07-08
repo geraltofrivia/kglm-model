@@ -1,5 +1,8 @@
 """
 Implementation of perplexity and unknown penalized perplexity metrics.
+
+TorchMetrics might come in handy (maybe not)
+https://torchmetrics.readthedocs.io/en/stable/
 """
 import logging
 import math
