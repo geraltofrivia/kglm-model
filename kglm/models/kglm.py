@@ -8,7 +8,7 @@ import math
 from typing import Any, Dict, List, Optional
 
 # AllenNLP imports
-from allennlp.data.vocabulary import Vocabulary
+# from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules import TextFieldEmbedder
 from allennlp.modules import Seq2SeqEncoder
 from allennlp.models import Model
@@ -95,9 +95,16 @@ class Kglm(Module):
         # self._token_embedder = token_embedder._token_embedders['tokens']
         # self._entity_embedder = entity_embedder._token_embedders['entity_ids']
         # self._relation_embedder = relation_embedder._token_embedders['relations']
-        self._token_embedder = token_embedder(torch.LongTensor(list(range(len(tokens_vocab)))))
-        self._entity_embedder = entity_embedder(torch.LongTensor(list(range(len(ent_vocab)))))
-        self._relation_embedder = relation_embedder # (torch.LongTensor(list(range(len(rel_vocab)))))
+
+
+        # self._token_embedder = token_embedder(torch.LongTensor(list(range(len(tokens_vocab)))))
+        # self._entity_embedder = entity_embedder(torch.LongTensor(list(range(len(ent_vocab)))))
+        # self._relation_embedder = relation_embedder # (torch.LongTensor(list(range(len(rel_vocab)))))
+
+        self._token_embedder = token_embedder
+        self._entity_embedder = entity_embedder
+        self._relation_embedder = relation_embedder
+
         self._alias_encoder = alias_encoder
         self._recent_entities = RecentEntities(cutoff=cutoff)
         self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path,
@@ -132,8 +139,12 @@ class Kglm(Module):
         # RNN Encoders.
         # entity_embedding_dim = entity_embedder.get_output_dim()
         # token_embedding_dim = token_embedder.get_output_dim()
-        self.entity_embedding_dim = self._entity_embedder.size(-1)
-        self.token_embedding_dim = self._token_embedder.size(-1)
+
+        # self.entity_embedding_dim = self._entity_embedder.size(-1)
+        # self.token_embedding_dim = self._token_embedder.size(-1)
+
+        self.entity_embedding_dim = self._entity_embedder.weight.size(-1)
+        self.token_embedding_dim = self._token_embedder.weight.size(-1)
 
         rnns: List[torch.nn.Module] = []
         for i in range(num_layers):
@@ -596,7 +607,9 @@ class Kglm(Module):
         # Get the token mask and extract indexed text fields.
         # shape: (batch_size, sequence_length)
         mask = get_text_field_mask(source)
-        source = source['tokens']
+        # source = source['tokens']
+        source = source['words']
+
 
         # Embed source tokens.
         # shape: (batch_size, sequence_length, embedding_dim)
@@ -630,8 +643,10 @@ class Kglm(Module):
         # ...UGH... we also need the raw ids - remapping time
         raw_entity_ids = torch.zeros_like(source)
         for *index, entity_id in nested_enumerate(entity_ids.tolist()):
-            token = self.vocab.get_token_from_index(entity_id, 'entity_ids')
-            raw_entity_id = self.vocab.get_token_index(token, 'raw_entity_ids')
+            # token = self.vocab.get_token_from_index(entity_id, 'entity_ids')
+            token = self.ent_vocab._decode_token_(entity_id)
+            # raw_entity_id = self.vocab.get_token_index(token, 'raw_entity_ids')
+            raw_entity_id = self.raw_ent_vocab._encode_token_(token, allow_unknowns=True)
             raw_entity_ids[tuple(index)] = raw_entity_id
 
         # Derived mentions.
@@ -657,8 +672,10 @@ class Kglm(Module):
                 _, selected_relation = torch.max(logits, dim=-1)
                 raw_tail_id = tail_id_lookup[selected_relation]
 
-                tail_id_string = self.vocab.get_token_from_index(raw_tail_id.item(), 'raw_entity_ids')
-                tail_id = self.vocab.get_token_index(tail_id_string, 'entity_ids')
+                # tail_id_string = self.vocab.get_token_from_index(raw_tail_id.item(), 'raw_entity_ids')
+                tail_id_string = self.raw_ent_vocab._decode_token_(raw_tail_id.item())
+                # tail_id = self.vocab.get_token_index(tail_id_string, 'entity_ids')
+                tail_id = self.ent_vocab._encode_token_(tail_id_string, allow_unknowns=True)
 
                 raw_tail_ids[index[:-1]] = raw_tail_id
                 tail_ids[index[:-1]] = tail_id
@@ -668,7 +685,8 @@ class Kglm(Module):
             entity_ids = tail_ids
 
         # Vocab stuff
-        vocab_size = self.vocab.get_vocab_size('tokens')
+        # vocab_size = self.vocab.get_vocab_size('tokens')
+        vocab_size = len(self.tokens_vocab)
         generate_scores = self._generate_scores(encoded_token, entity_ids)
         alias_tokens, alias_indices = alias_database.lookup(raw_entity_ids)
         copy_scores = self._copy_scores(encoded_token, alias_tokens)
@@ -988,8 +1006,8 @@ class Kglm(Module):
                                      dtype=torch.float32)
 
         # Embed and encode the alias tokens.
-        # embedded = self._token_embedder(flattened)
-        embedded = torch.stack([self._token_embedder[i] for i in flattened])
+        embedded = self._token_embedder(flattened)
+        # embedded = torch.stack([self._token_embedder[i] for i in flattened])
         mask = flattened.gt(0)
         # problem here is that originally alias_encoder is a Seq2Seq module now its an LSTM
         # we need a way to apply the LSTM only on the part of the input that is not MASKED, e.g. only for True indices
