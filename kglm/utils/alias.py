@@ -18,7 +18,7 @@ try:
     import _pathfix
 except ImportError:
     from . import _pathfix
-from config import MAX_ALIAS_NUM, MAX_ALIAS_TOKENS
+from config import DEFAULTS
 
 
 logger = logging.getLogger(__name__)
@@ -84,8 +84,8 @@ class AliasDatabase:
                     token_to_entity_lookup[token].add(entity)
 
             # Start by tokenizing the aliases
-            tokenized_aliases: AliasList = [tokenizer.tokenize(alias)[:MAX_ALIAS_TOKENS] for alias in aliases]
-            tokenized_aliases = tokenized_aliases[:MAX_ALIAS_NUM]
+            tokenized_aliases: AliasList = [tokenizer.tokenize(alias)[:DEFAULTS.max_alias_tokens] for alias in aliases]
+            tokenized_aliases = tokenized_aliases[:DEFAULTS.max_alias_num]
             token_lookup[entity] = tokenized_aliases
 
             # Next obtain the set of unique tokens appearing in aliases for this entity. Use this
@@ -195,10 +195,10 @@ class AliasDatabase:
         """Looks up alias tokens for the given entities."""
         # Initialize empty tensors and fill them using the lookup
         batch_size, sequence_length = entity_ids.shape
-        global_tensor = entity_ids.new_zeros(batch_size, sequence_length, MAX_ALIAS_NUM, MAX_ALIAS_TOKENS,
-                                             requires_grad=False)
-        local_tensor = entity_ids.new_zeros(batch_size, sequence_length, MAX_ALIAS_NUM, MAX_ALIAS_TOKENS,
-                                            requires_grad=False)
+        global_tensor = entity_ids.new_zeros(batch_size, sequence_length, DEFAULTS.max_alias_num,
+                                             DEFAULTS.max_alias_tokens, requires_grad=False)
+        local_tensor = entity_ids.new_zeros(batch_size, sequence_length, DEFAULTS.max_alias_num,
+                                            DEFAULTS.max_alias_tokens, requires_grad=False)
         for i in range(batch_size):
             for j in range(sequence_length):
                 entity_id = entity_ids[i, j]

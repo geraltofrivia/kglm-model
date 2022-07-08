@@ -12,3 +12,8 @@ class BadParameters(ValueError):
 class NoVocabInTokenizer(AttributeError):
     """ Raise when someone uses tokenizer to vocabularise things but didnt' provide a vocab to it. """
     ...
+
+
+class FoundNaNs(ValueError):
+    """ If you ever encounter nans in the model, raise this, why don't you.  """
+    ...

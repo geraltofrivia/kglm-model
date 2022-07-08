@@ -10,7 +10,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from collections import deque
 from dataclasses import fields
-from typing import List, Tuple, Iterable, Dict, Deque
+from typing import List, Tuple, Iterable, Dict, Deque, Optional
 
 # Local Imports
 try:
@@ -30,6 +30,8 @@ class FancyIterator:
     """
         This is the iterator that takes documents processed by EnhancedWikitextKglmReader
             and makes them ready for training (encapsulated in AllenNLP gunk but we can take care of that)...
+
+        Once done with an epoch, just a make a new one, and delete this iter.
     """
 
     # noinspection PyUnusedLocal
@@ -95,61 +97,88 @@ class FancyIterator:
                 shortlist: Dict[str, torch.Tensor] = None,
                 shortlist_inds: torch.Tensor = None,
                 alias_copy_inds: torch.Tensor = None,
+
+            NOTE: this assumes that every element in one batch has similar properties.
+            That is, if one of them doesnt have a target field, none of them will have a target field
         """
 
         bs = len(batch)
-        outputs = {'metadata': [{'alias_database': alias_database} for _ in range(bs)]}
+        outputs = {
+            'metadata': [{'alias_database': alias_database} for _ in range(bs)],
+            'source': None,
+            'target': None,
+            'raw_entity_ids': None,
+            'entity_ids': None,
+            'relations': None,
+            'parent_ids': None,
+            'shortlist': None,
+            'shortlist_inds': None,
+            'reset': None,
+            'mention_type': None,
+            'alias_copy_inds': None
+        }
 
         # Fix source
-        source_values = [instance.source for instance in batch]
-        source_words = self.tokenizer.batch_convert(source_values, pad=True, to='torch')
-        outputs['source']: Dict[str, torch.Tensor] = {'words': source_words}
+        if batch[0].source is not None:
+            source_values = [instance.source for instance in batch]
+            source_words: torch.Tensor = self.tokenizer.batch_convert(source_values, pad=True, to='torch')
+            outputs['source']: Optional[Dict[str, torch.Tensor]] = {'words': source_words}
 
         # Fix target
-        target_values = [instance.target for instance in batch]
-        target_words = self.tokenizer.batch_convert(target_values, pad=True, to='torch')
-        outputs['target']: Dict[str, torch.Tensor] = {'words': target_words}
+        if batch[0].target is not None:
+            target_values = [instance.target for instance in batch]
+            target_words: torch.Tensor = self.tokenizer.batch_convert(target_values, pad=True, to='torch')
+            outputs['target']: Optional[Dict[str, torch.Tensor]] = {'words': target_words}
 
         # Fix raw entity IDs [60, 70]
-        raw_entity_values = [instance.raw_entities for instance in batch]
-        raw_entity_words = self.raw_ent_tokenizer.batch_convert(raw_entity_values, pad=True, to='torch')
-        outputs['raw_entity_ids']: Dict[str, torch.Tensor] = {'entity_ids': raw_entity_words}
+        if batch[0].raw_entities is not None:
+            raw_entity_values = [instance.raw_entities for instance in batch]
+            raw_entity_words = self.raw_ent_tokenizer.batch_convert(raw_entity_values, pad=True, to='torch')
+            outputs['raw_entity_ids']: Dict[str, torch.Tensor] = {'entity_ids': raw_entity_words}
 
         # Fix entity IDs [60, 70]
-        entity_values = [instance.entities for instance in batch]
-        entity_words = self.ent_tokenizer.batch_convert(entity_values, pad=True, to='torch')
-        outputs['entity_ids']: Dict[str, torch.Tensor] = {'entity_ids': entity_words}
+        if batch[0].entities is not None:
+            entity_values = [instance.entities for instance in batch]
+            entity_words = self.ent_tokenizer.batch_convert(entity_values, pad=True, to='torch')
+            outputs['entity_ids']: Dict[str, torch.Tensor] = {'entity_ids': entity_words}
 
         # Fix Relations. [60, 70, 10]
-        relations_values = [instance.relations for instance in batch]
-        relations_words = self.rel_tokenizer.batch_convert_3d(relations_values, pad=True, to='torch')
-        outputs['relations']: Dict[str, torch.Tensor] = {'relations': relations_words}
+        if batch[0].relations is not None:
+            relations_values = [instance.relations for instance in batch]
+            relations_words = self.rel_tokenizer.batch_convert_3d(relations_values, pad=True, to='torch')
+            outputs['relations']: Dict[str, torch.Tensor] = {'relations': relations_words}
 
         # Fix Parents. [60, 70, 10]
-        parents_values = [instance.parent_ids for instance in batch]
-        parents_words = self.ent_tokenizer.batch_convert_3d(parents_values, pad=True, to='torch')
-        outputs['parent_ids']: Dict[str, torch.Tensor] = {'entity_ids': parents_words}
+        if batch[0].parent_ids is not None:
+            parents_values = [instance.parent_ids for instance in batch]
+            parents_words = self.ent_tokenizer.batch_convert_3d(parents_values, pad=True, to='torch')
+            outputs['parent_ids']: Dict[str, torch.Tensor] = {'entity_ids': parents_words}
 
         # Fix shortlists (like entities)
-        shortlist_values = [instance.shortlist for instance in batch]
-        shortlist_words = self.ent_tokenizer.batch_convert(shortlist_values, pad=True, to='torch')
-        outputs['shortlist']: Dict[str, torch.Tensor] = {'entity_ids': shortlist_words}
+        if batch[0].shortlist is not None:
+            shortlist_values = [instance.shortlist for instance in batch]
+            shortlist_words = self.ent_tokenizer.batch_convert(shortlist_values, pad=True, to='torch')
+            outputs['shortlist']: Dict[str, torch.Tensor] = {'entity_ids': shortlist_words}
 
         # Fix shortlist indices
-        shortlist_ind_values = np.array([instance.shortlist_inds for instance in batch])
-        outputs['shortlist_inds']: torch.Tensor = torch.tensor(shortlist_ind_values)
+        if batch[0].shortlist_inds is not None:
+            shortlist_ind_values = np.array([instance.shortlist_inds for instance in batch])
+            outputs['shortlist_inds']: torch.Tensor = torch.tensor(shortlist_ind_values)
 
         # Fix reset
-        reset_values = np.array([instance.reset for instance in batch])
-        outputs['reset']: torch.ByteTensor = torch.tensor(reset_values, dtype=torch.uint8)
+        if batch[0].reset is not None:
+            reset_values = np.array([instance.reset for instance in batch])
+            outputs['reset']: torch.ByteTensor = torch.tensor(reset_values, dtype=torch.uint8)
 
         # Fix mention types
-        mention_type_values = np.array([instance.mention_type for instance in batch])
-        outputs['mention_type']: torch.Tensor = torch.tensor(mention_type_values)
+        if batch[0].mention_type is not None:
+            mention_type_values = np.array([instance.mention_type for instance in batch])
+            outputs['mention_type']: torch.Tensor = torch.tensor(mention_type_values)
 
         # Fix shortlist indices
-        alias_copy_ind_values = np.array([instance.alias_copy_inds for instance in batch])
-        outputs['alias_copy_inds']: torch.Tensor = torch.tensor(alias_copy_ind_values)
+        if batch[0].alias_copy_inds is not None:
+            alias_copy_ind_values = np.array([instance.alias_copy_inds for instance in batch])
+            outputs['alias_copy_inds']: torch.Tensor = torch.tensor(alias_copy_ind_values)
 
         # # Go through all text fields in instance and convert them to nice crisp tensors
         # relevant_fields = ['source', 'target']

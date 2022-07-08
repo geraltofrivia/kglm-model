@@ -4,3 +4,4 @@ overrides
 numpy
 my-torch
 tqdm
+wandb

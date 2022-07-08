@@ -31,6 +31,29 @@ DEFAULT_UNK_TOKEN = '@@UNKNOWN@@'
 DEFAULT_BOS_TOKEN = '@@START@@'
 DEFAULT_EOS_TOKEN = '@@END@@'
 
-# Used in utils/alias.py
-MAX_ALIAS_NUM = 4
-MAX_ALIAS_TOKENS = 8
+KNOWN_OPTIMIZERS = ['adam', 'sgd']
+KNOWN_SCHEDULERS = ['gamma', 'constant', 'none']
+
+DEFAULTS = FancyDict(**{
+    'batch_size':  10,
+    'split_size': 70,
+    'max_alias_num': 4,
+    'max_alias_tokens': 8,
+
+    'trainer': FancyDict(**{
+        'optimizer_class': 'adam',
+        'scheduler_class': 'constant',
+        'adam_beta1': 0.9,
+        'adam_beta2': 0.999,
+        'adam_epsilon': 1e-6,
+        'clip_gradients_norm': 0.0,     # TODO: maybe you need to actually clip grads
+        'learning_rate': 3e-4,
+        'weight_decay': 1.2e-6,
+    }),
+})
+
+SCHEDULER_DEFAULTS = FancyDict(**{
+    'gamma': {'decay_rate': 0.9},
+    'none': {},
+    'constant': {}
+})

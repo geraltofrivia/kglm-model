@@ -599,7 +599,6 @@ class Kglm(Module):
 
         return {'loss': loss, 'logp': logp, 'penalized_logp': penalized_logp}
 
-
     def _greedy_decode(self,
                        source: Dict[str, torch.Tensor],
                        alias_database: AliasDatabase,
