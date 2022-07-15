@@ -14,7 +14,7 @@ class Metric(ABC):
         Expected to hold values for only one epoch and should be reset after every epoch.
     """
 
-    def __init__(self, name: str, verbose: bool = False):
+    def __init__(self, name: str = '', verbose: bool = False):
         self._log: List[float] = []
         self.name = name
         self.verbose = verbose

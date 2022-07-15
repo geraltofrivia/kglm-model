@@ -66,9 +66,6 @@ def training_loop(
             outputs = forward_fn(**instance)
             loss = outputs['loss']
 
-            # Update the train metrics
-            train_evaluator.update(instance=instance, outputs=outputs)
-
             if torch.isnan(loss):
                 raise FoundNaNs(f"Found NaN in the loss. Epoch: {e}, Iteration: {i}.")
 
@@ -83,7 +80,8 @@ def training_loop(
             # Update parameters
             optim.step()
 
-            # TODO: note down the metrics !
+            # calculate metrics and note down loss
+            train_evaluator.update(instance=instance, outputs=outputs)
             per_epoch_loss.append(loss.item())
 
         # Evaluating the model.
