@@ -1,11 +1,7 @@
 """ Here be ze training loops """
 
 '''
-# TODOs
 
-[ ] Metrics computation
-[ ] WandB integration
-[ ] Model saving
 '''
 from tqdm.auto import tqdm
 import torch.nn
@@ -45,7 +41,7 @@ def training_loop(
     valid_metrics: Dict = {}
 
     # Epoch Level
-    for e in range(epochs_last_run + 1, epochs + epochs_last_run + 1):
+    for e in trange(epochs_last_run + 1, epochs + epochs_last_run + 1):
 
         # Make datasets. Fresh for each epoch.
         trn_dataset = train_dl()
