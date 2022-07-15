@@ -136,12 +136,12 @@ class LmTrainer(TrainerBase):
         summary_interval: ``int``, optional, (default = 100)
             Number of batches between logging scalars to tensorboard
         histogram_interval : ``int``, optional, (default = ``None``)
-            If not None, then log histograms to tensorboard every ``histogram_interval`` batches.
+            If not None, then _log histograms to tensorboard every ``histogram_interval`` batches.
             When this parameter is specified, the following additional logging is enabled:
                 * Histograms of model parameters
                 * The ratio of parameter update norm to parameter norm
                 * Histogram of layer activations
-            We log histograms of the parameters returned by
+            We _log histograms of the parameters returned by
             ``model.get_parameters_for_histogram_tensorboard_logging``.
             The layer activations are logged for any modules in the ``Model`` that have
             the attribute ``should_log_activations`` set to ``True``.  Logging
@@ -155,7 +155,7 @@ class LmTrainer(TrainerBase):
         should_log_learning_rate : ``bool``, optional, (default = False)
             Whether to send parameter specific learning rate to tensorboard.
         log_batch_size_period : ``int``, optional, (default = ``None``)
-            If defined, how often to log the average batch size.
+            If defined, how often to _log the average batch size.
         moving_average: ``MovingAverage``, optional, (default = None)
             If provided, we will maintain moving averages for all parameters. During training, we
             employ a shadow variable for each parameter, which maintains the moving average. During

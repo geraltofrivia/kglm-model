@@ -13,7 +13,7 @@ import click
 from functools import partial
 from mytorch.utils.goodies import FancyDict
 from torch.nn import Embedding, LSTM
-from typing import Dict, List, Any, Optional, Type
+from typing import Any, Optional, Type
 
 # Local imports
 from tokenizer import SpacyTokenizer, SimpleTokenizer
@@ -25,6 +25,7 @@ from models.kglm import Kglm
 from utils.exceptions import BadParameters
 from utils.misc import merge_configs
 from loops import training_loop
+from eval import PenalizedPerplexity, Perplexity, Evaluator
 
 
 def make_optimizer(
@@ -37,7 +38,7 @@ def make_optimizer(
         adam_epsilon: float = 1e-6
 ) -> torch.optim:
     """
-        Make the optimizer based on the optimizer class defined (harcode torch.optim.Adam for 'adam' etc)
+        Make the optimizer based on the optimizer class defined (hardcode torch.optim.Adam for 'adam' etc)
 
         TODO: shall we optimize the embeddings differently than the rest?
 
@@ -70,8 +71,7 @@ def make_optimizer(
 
 
 # noinspection PyProtectedMember
-def make_scheduler(opt, lr_schedule: Optional[str]) -> Optional[
-    Type[torch.optim.lr_scheduler._LRScheduler]]:
+def make_scheduler(opt, lr_schedule: Optional[str]) -> Optional[Type[torch.optim.lr_scheduler._LRScheduler]]:
     if not lr_schedule or lr_schedule in ['constant', 'none']:
         return None
 
@@ -151,6 +151,8 @@ def main(
     raw_ent_tokenizer = SimpleTokenizer(vocab=raw_ent_vocab)
 
     # Now make a dataiter to work with it.
+    # Note that these aren't actually functioning datasets. But instead, they are objects which know how to interpret
+    # #### raw (or partly preprocessed data) and make it training/eval friendly.
     train_di = FancyIterator(
         batch_size=config.batch_size,
         split_size=config.split_size,
@@ -188,6 +190,12 @@ def main(
             "alias_copy_inds"
         ]
     )
+    # We now use the FancyIterator objects' __call__ function and throw actual data to it. But we don't do it just now.
+    # We create a partial so`train_data_partial()` will execute `train_di.__call__` with the right params given to it.
+    train_data_partial = partial(train_di, train_data.load(LOC.lw2 / 'train.jsonl'),
+                                 alias_database=train_data.alias_database)
+    valid_data_partial = partial(valid_di, valid_data.load(LOC.lw2 / 'valid.jsonl'),
+                                 alias_database=valid_data.alias_database)
 
     # Make the model
     model_params = {
@@ -222,6 +230,14 @@ def main(
     )
     scheduler: Optional[Any] = make_scheduler(opt, lr_schedule=config.trainer.scheduler_class)
 
+    # TODO: this
+    # Init the metrics
+    metric_classes = [Perplexity, PenalizedPerplexity]
+    train_eval = Evaluator(metric_classes=metric_classes)
+    valid_eval = Evaluator(
+        metric_classes=metric_classes, predict_fn=model.forward, data_loader_callable=valid_data_partial
+    )
+
     # WandB Initialisation
     if use_wandb:
         if 'wandbid' not in config.to_dict():
@@ -235,10 +251,9 @@ def main(
     training_loop(
         model=model,
         forward_fn=model,
-        train_dl=partial(train_di, train_data.load(LOC.lw2 / 'train.jsonl'),
-                         alias_database=train_data.alias_database),
-        valid_dl=partial(valid_di, valid_data.load(LOC.lw2 / 'valid.jsonl'),
-                         alias_database=valid_data.alias_database),
+        train_dl=train_data_partial,
+        train_evaluator=train_eval,
+        valid_evaluator=valid_eval,
         device=config.device,
         epochs=config.trainer.epochs,
         optim=opt,

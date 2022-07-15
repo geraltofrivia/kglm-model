@@ -10,12 +10,12 @@
 from tqdm.auto import tqdm
 import torch.nn
 from typing import Callable, Dict, Optional, Type
-from pathlib import Path
 import numpy as np
 
 # Local imports
 from utils.misc import change_device
 from utils.exceptions import FoundNaNs
+from eval import Evaluator
 
 
 # noinspection PyUnresolvedReferences
@@ -23,9 +23,10 @@ def training_loop(
         model: torch.nn.Module,
         forward_fn: Callable,
         train_dl: Callable,
-        valid_dl: Callable,
         device: str,
         epochs: int,
+        train_evaluator: Evaluator,
+        valid_evaluator: Evaluator,
         optim: torch.optim,
         scheduler: Optional[Type[torch.optim.lr_scheduler._LRScheduler]],
         clip_grad_norm: float = 0.0,
@@ -40,15 +41,14 @@ def training_loop(
 ):
 
     train_loss = []
-    train_metrics: Dict = {}    # TODO: what metrics are we using anyway
-    valid_metrics: Dict = {}    # TODO: same as above
+    train_metrics: Dict = {}
+    valid_metrics: Dict = {}
 
     # Epoch Level
     for e in range(epochs_last_run + 1, epochs + epochs_last_run + 1):
 
-        # Make data
+        # Make datasets. Fresh for each epoch.
         trn_dataset = train_dl()
-        vld_dataset = valid_dl
 
         # Bookkeeping stuff
         per_epoch_loss = []
@@ -65,6 +65,9 @@ def training_loop(
 
             outputs = forward_fn(**instance)
             loss = outputs['loss']
+
+            # Update the train metrics
+            train_evaluator.update(instance=instance, outputs=outputs)
 
             if torch.isnan(loss):
                 raise FoundNaNs(f"Found NaN in the loss. Epoch: {e}, Iteration: {i}.")
@@ -83,8 +86,9 @@ def training_loop(
             # TODO: note down the metrics !
             per_epoch_loss.append(loss.item())
 
-        # TODO: change model mode to eval
-        # TODO: evaluation snippet
+        # Evaluating the model.
+        model.eval()
+        valid_evaluator.run()
 
         # If LR scheduler is provided, run it
         if scheduler is not None:
@@ -92,17 +96,14 @@ def training_loop(
 
         # Bookkeeping
         train_loss.append(np.mean(per_epoch_loss))
+        train_metrics = train_evaluator.aggregate_reports(train_metrics, train_evaluator.report())
+        valid_metrics = valid_evaluator.aggregate_reports(valid_metrics, valid_evaluator.report())
         if flag_wandb:
             wandb.log({
                 'loss': train_loss[-1],
+                'train': train_evaluator.report(),
+                'valid': valid_evaluator.report()
             })
 
         print(f"\nEpoch: {e:5d}" +
               f"\n\tLoss: {train_loss[-1]:.8f}")
-
-        # Saving
-
-        # DONE
-
-
-

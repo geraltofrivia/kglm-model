@@ -39,18 +39,18 @@ def parallel_sample(probs: torch.FloatTensor) -> torch.LongTensor:
 
 def sample_from_logp(logp: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Draws samples from a tensor of log probabilities. API matches ``torch.max()``.
+    Draws samples from a tensor of _log probabilities. API matches ``torch.max()``.
 
     Parameters
     ----------
     logp : ``torch.Tensor``
-        Tensor of shape ``(batch_size, ..., n_categories)`` of log probabilities.
+        Tensor of shape ``(batch_size, ..., n_categories)`` of _log probabilities.
 
     Returns
     -------
     A tuple consisting of:
     selected_logp : ``torch.Tensor``
-        Tensor of shape ``(batch_size, ...)`` containing the selected log probabilities.
+        Tensor of shape ``(batch_size, ...)`` containing the selected _log probabilities.
     selected_idx : ``torch.Tensor``
         Tensor of shape ``(batch_size, ...)`` containing the selected indices.
     """

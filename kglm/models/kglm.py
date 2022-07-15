@@ -432,14 +432,14 @@ class Kglm(Module):
             copy_sequence_length = copy_scores.shape[-1]
             concatenated_scores = torch.cat((generate_scores, copy_scores), dim=-1)
 
-            # In order to obtain proper log probabilities we create a mask to omit padding alias tokens
+            # In order to obtain proper _log probabilities we create a mask to omit padding alias tokens
             # from the calculation.
             batch_size = source_tokens.shape[0]
             score_mask = torch.ones_like(concatenated_scores)
             alias_mask = alias_tokens.gt(0).view(batch_size, 1, -1)
             score_mask[:, :, vocab_size:] = alias_mask
 
-            # The log-probability distribution is then given by taking the masked log softmax.
+            # The _log-probability distribution is then given by taking the masked _log softmax.
             target_probs = masked_softmax(concatenated_scores, score_mask)
             out_dict['target_probs'] = target_probs.detach()
             out_dict['alias_indices'] = alias_indices.view(batch_size, -1)
@@ -500,7 +500,6 @@ class Kglm(Module):
                 alias_database=alias_database,
                 shortlist=shortlist)
 
-
         return output_dict
 
     def _forward_loop(self,
@@ -518,6 +517,7 @@ class Kglm(Module):
 
         # Get the token mask and extract indexed text fields.
         # shape: (batch_size, sequence_length)
+        # TODO: bug!! This is trying to find padding vs actual tokens. Replace it with an inhouse on.
         target_mask = get_text_field_mask(source)
         # source = source['tokens']
         source = source['words']
@@ -597,7 +597,7 @@ class Kglm(Module):
         if self._beta:
             loss = loss + self._beta * beta_loss
 
-        return {'loss': loss, 'logp': logp, 'penalized_logp': penalized_logp}
+        return {'loss': loss, 'log_perplexity': logp, 'penalized_log_perplexity': penalized_logp}
 
     def _greedy_decode(self,
                        source: Dict[str, torch.Tensor],
@@ -692,13 +692,13 @@ class Kglm(Module):
         copy_sequence_length = copy_scores.shape[-1]
         concatenated_scores = torch.cat((generate_scores, copy_scores), dim=-1)
 
-        # In order to obtain proper log probabilities we create a mask to omit padding alias tokens
+        # In order to obtain proper _log probabilities we create a mask to omit padding alias tokens
         # from the calculation.
         score_mask = torch.ones_like(concatenated_scores)
         alias_mask = alias_tokens.gt(0).view(1, 1, -1)
         score_mask[:, :, vocab_size:] = alias_mask
 
-        # The log-probability distribution is then given by taking the masked log softmax.
+        # The _log-probability distribution is then given by taking the masked _log softmax.
         word_probs = masked_softmax(concatenated_scores, score_mask)
 
         word_probs = word_probs.squeeze()
@@ -849,7 +849,7 @@ class Kglm(Module):
         """
         logits = self._new_entity_logits(encoded, shortlist)
         if self._use_shortlist:
-            # Take masked softmax to get log probabilties and gather the targets.
+            # Take masked softmax to get _log probabilties and gather the targets.
             shortlist_mask = get_text_field_mask(shortlist)
             log_probs = masked_log_softmax(logits, shortlist_mask)
         else:
@@ -883,7 +883,7 @@ class Kglm(Module):
         encoded = self._locked_dropout(encoded_head, self._dropout)
         selection_logits = torch.bmm(encoded, candidate_embeddings.transpose(1, 2))
 
-        # Get log probabilities using masked softmax (need to double check mask works properly).
+        # Get _log probabilities using masked softmax (need to double check mask works properly).
 
         # shape: (batch_size, sequence_length, num_candidates)
         log_probs = masked_log_softmax(selection_logits, candidate_mask)
@@ -905,11 +905,11 @@ class Kglm(Module):
         # shape: (batch_size, 1, 1, num_candidates)
         non_null = ~_candidate_ids.eq(0)
 
-        # Since multiplication is addition in log-space, we can apply mask by adding its log (+
+        # Since multiplication is addition in _log-space, we can apply mask by adding its _log (+
         # some small constant for numerical stability).
         mask = is_parent & non_null
         masked_log_probs = log_probs.unsqueeze(2) + (mask.float() + 1e-45).log()
-        # logger.debug('Masked log probs shape: %s', masked_log_probs.shape)
+        # logger.debug('Masked _log probs shape: %s', masked_log_probs.shape)
 
         # Lastly, we need to get rid of the num_candidates dimension. The easy way to do this would
         # be to marginalize it out. However, since our data is sparse (the last two dims are
@@ -942,13 +942,13 @@ class Kglm(Module):
         target_log_probs = encoded.new_empty(*parent_ids.shape).fill_(math.log(1e-45))
         for index, parent_id, relation_embedding, tail_id in zip(indices, parent_ids_list, relation_embeddings, tail_ids_list):
             # First we compute the score for each relation w.r.t the current encoding, and convert
-            # the scores to log-probabilities
+            # the scores to _log-probabilities
             logits = torch.mv(relation_embedding, encoded[index[:-1]])
             ''' RuntimeError: vector + matrix @ vector expected, got 1, 1, 1'''
             # logger.debug('Relation logits shape: %s', logits.shape)
             log_probs = F.log_softmax(logits, dim=-1)
 
-            # Next we gather the log probs for edges with the correct tail entity and sum them up
+            # Next we gather the _log probs for edges with the correct tail entity and sum them up
             target_id = raw_entity_ids[index[:-1]]
             mask = tail_id.eq(target_id)
             relevant_log_probs = log_probs.masked_select(tail_id.eq(target_id))
@@ -964,7 +964,7 @@ class Kglm(Module):
                                      entity_ids: torch.Tensor,
                                      parent_ids: torch.Tensor,
                                      target_mask: torch.Tensor) -> torch.Tensor:
-        # First get the log probabilities of the parents and relations that lead to the current
+        # First get the _log probabilities of the parents and relations that lead to the current
         # entity.
         parent_log_probs = self._parent_log_probs(encoded_head, entity_ids, parent_ids)
         relation_log_probs = self._relation_log_probs(encoded_relation, raw_entity_ids, parent_ids)
@@ -1038,13 +1038,13 @@ class Kglm(Module):
         batch_size, sequence_length, vocab_size = generate_scores.shape
         copy_sequence_length = copy_scores.shape[-1]
 
-        # In order to obtain proper log probabilities we create a mask to omit padding alias tokens
+        # In order to obtain proper _log probabilities we create a mask to omit padding alias tokens
         # from the calculation.
         alias_mask = alias_indices.view(batch_size, sequence_length, -1).gt(0)
         score_mask = alias_mask.new_ones(batch_size, sequence_length, vocab_size + copy_sequence_length)
         score_mask[:, :, vocab_size:] = alias_mask
 
-        # The log-probability distribution is then given by taking the masked log softmax.
+        # The _log-probability distribution is then given by taking the masked _log softmax.
         concatenated_scores = torch.cat((generate_scores, copy_scores), dim=-1)
         log_probs = masked_log_softmax(concatenated_scores, score_mask)
 
@@ -1069,7 +1069,7 @@ class Kglm(Module):
 
         # GENERATE LOSS ###
         # The generated token loss is a simple cross-entropy calculation, we can just gather
-        # the log probabilties...
+        # the _log probabilties...
         flattened_log_probs = log_probs.view(batch_size * sequence_length, -1)
         generate_log_probs_source_vocab = flattened_log_probs.gather(1, flattened_targets)
         # ...except we need to ignore the contribution of UNK tokens that are copied (only when
@@ -1078,19 +1078,19 @@ class Kglm(Module):
         unks = target_tokens.eq(self._unk_index).view(-1, 1)
         copied = target_alias_indices.gt(0).view(-1, 1)
         generate_mask = ~(unks & copied) & flattened_mask
-        # Since we are in log-space we apply the mask by addition.
+        # Since we are in _log-space we apply the mask by addition.
         generate_log_probs_extended_vocab = generate_log_probs_source_vocab + (generate_mask.float() + 1e-45).log()
 
         # COPY LOSS ###
         copy_log_probs = flattened_log_probs[:, vocab_size:]
-        # When computing the loss we need to get the log probability of **only** the copied tokens.
+        # When computing the loss we need to get the _log probability of **only** the copied tokens.
         alias_indices = alias_indices.view(batch_size * sequence_length, -1)
         target_alias_indices = target_alias_indices.view(-1, 1)
         copy_mask = alias_indices.eq(target_alias_indices) & flattened_mask & target_alias_indices.gt(0)
         copy_log_probs = copy_log_probs + (copy_mask.float() + 1e-45).log()
 
         # COMBINED LOSS ###
-        # The final loss term is computed using our log probs computed w.r.t to the entire
+        # The final loss term is computed using our _log probs computed w.r.t to the entire
         # vocabulary.
         combined_log_probs_extended_vocab = torch.cat((generate_log_probs_extended_vocab,
                                                        copy_log_probs),
@@ -1111,7 +1111,7 @@ class Kglm(Module):
         penalized_vocab_loss = -penalized_log_probs.sum() / (mask.sum() + 1e-13)
 
         # PERPLEXITY ###
-        # Our perplexity terms are computed using the log probs computed w.r.t the source
+        # Our perplexity terms are computed using the _log probs computed w.r.t the source
         # vocabulary.
         combined_log_probs_source_vocab = torch.cat((generate_log_probs_source_vocab,
                                                      copy_log_probs),
