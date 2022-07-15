@@ -59,7 +59,7 @@ def training_loop(
         for i, instance in enumerate(tqdm(trn_dataset)):
 
             # Reset the gradients
-            opt.zero_grad()
+            optim.zero_grad()
 
             instance = change_device(instance, device)
 

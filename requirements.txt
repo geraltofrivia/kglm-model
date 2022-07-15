@@ -5,3 +5,4 @@ numpy
 my-torch
 tqdm
 wandb
+click
