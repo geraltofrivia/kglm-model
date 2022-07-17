@@ -27,6 +27,11 @@ def training_loop(
         scheduler: Optional[Type[torch.optim.lr_scheduler._LRScheduler]],
         clip_grad_norm: float = 0.0,
 
+        # Saving Stuff
+        flag_save: bool = False,
+        save_config: Dict = None,
+        save_dir: Optional[Path] = None,
+
         # WandB Logging Stuff
         flag_wandb: bool = False,
         epochs_last_run: int = 0,
@@ -99,5 +104,33 @@ def training_loop(
                 'valid': valid_evaluator.report()
             })
 
+        # Saving Code
+        if flag_save:
+
+            # Config
+            with (save_dir / 'config.json').open('w+', encoding='utf8') as f:
+                json.dump({**save_config, **{'epochs_last_run': e}}, f)
+
+            # Traces
+            with (save_dir / 'traces.pkl').open('wb+') as f:
+                pickle.dump({
+                    'train_metrics': train_metrics,
+                    'valid_metrics': valid_metrics,
+                    'train_loss': train_loss
+                }, f)
+
+            # Model
+            torch.save({
+                'epochs_last_run': e,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': opt.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict() if scheduler else None,
+            }, Path(save_dir) / 'torch.save')
+            print(f"Model saved on Epoch {e} at {save_dir}.")
+
+        train_evaluator.reset()
+        valid_evaluator.reset()
+
         print(f"\nEpoch: {e:5d}" +
               f"\n\tLoss: {train_loss[-1]:.8f}")
+

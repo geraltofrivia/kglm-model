@@ -14,15 +14,16 @@ LOCATIONS: Dict[str, Path] = FancyDict(
     **{
         "root": ROOT_LOC,
         "lw2": ROOT_LOC / 'data' / 'linked-wikitext-2',
+        "models": ROOT_LOC / 'models',
     }
 )
 LOCATIONS.vocab = LOCATIONS.lw2 / 'vocab'
 
-for k, v in LOCATIONS.items():
-    if not v.exists():
-        raise AssertionError(f"Expected to find '{k}' in {v}. But its not there. Fix it svp! "
-                             f"Current dir is {os.getcwd()}. "
-                             f"Absolute path is {v.resolve()}")
+# for k, v in LOCATIONS.items():
+#     if not v.exists():
+#         raise AssertionError(f"Expected to find '{k}' in {v}. But its not there. Fix it svp! "
+#                              f"Current dir is {os.getcwd()}. "
+#                              f"Absolute path is {v.resolve()}")
 
 MAX_PARENTS = 10
 # AllenNLP stuff

@@ -7,11 +7,12 @@
 '''
 
 # Global imports
+import git
 import torch
 import wandb
 import click
 from functools import partial
-from mytorch.utils.goodies import FancyDict
+from mytorch.utils.goodies import FancyDict, get_commit_hash, mt_save_dir
 from torch.nn import Embedding, LSTM
 from typing import Any, Optional, Type
 
@@ -102,6 +103,7 @@ def make_scheduler(opt, lr_schedule: Optional[str]) -> Optional[Type[torch.optim
               help="If use-wandb is enabled, whatever comment you write will be included in WandB runs.")
 @click.option('--wandb-name', '-wbname', type=str, default=None,
               help="You can specify a short name for the run here as well. ")
+@click.option('--save', '-s', is_flag=True, default=False, help="If true, the model is dumped to disk at every epoch.")
 def main(
         epochs: int,
         device: str,
@@ -110,6 +112,7 @@ def main(
         learning_rate: float,
         optimizer: str,
         lr_scheduler: str,
+        save: bool,
 
         # WandB stuff
         use_wandb: bool = False,
@@ -120,6 +123,7 @@ def main(
     config.device = device
     config.batch_size = batch_size
     config.split_size = split_size
+    config.commit = get_commit_hash()
 
     config.trainer = FancyDict()
     config.trainer.learning_rate = learning_rate
@@ -230,7 +234,6 @@ def main(
     )
     scheduler: Optional[Any] = make_scheduler(opt, lr_schedule=config.trainer.scheduler_class)
 
-    # TODO: this
     # Init the metrics
     metric_classes = [Perplexity, PenalizedPerplexity]
     train_eval = Evaluator(metric_classes=metric_classes)
@@ -238,9 +241,29 @@ def main(
         metric_classes=metric_classes, predict_fn=model.forward, data_loader_callable=valid_data_partial
     )
 
+    # Save directory shenanigans
+    if save:
+        savedir = LOC.models
+        savedir.mkdir(parents=True, exist_ok=True)
+
+        # Resume block here
+        # if resume_dir >= 0:
+        #     # We already know which dir to save the model to.
+        #     savedir = savedir / str(resume_dir)
+        #     assert savedir.exists(), f"No subfolder {resume_dir} in {savedir.parent}. Can not resume!"
+        # else:
+        if True:
+            # This is a new run and we should just save the model in a new place
+            savedir = mt_save_dir(parentdir=savedir, _newdir=True)
+
+        save_config = config
+    else:
+        savedir, save_config = None, None
+    config.savedir = savedir
+
     # WandB Initialisation
     if use_wandb:
-        if 'wandbid' not in config.to_dict():
+        if 'wandbid' not in config:
             config.wandbid = wandb.util.generate_id()
 
         wandb.init(project="crud-lm", entity="magnet", notes=wandb_comment, name=wandb_name,
@@ -257,6 +280,9 @@ def main(
         device=config.device,
         epochs=config.trainer.epochs,
         optim=opt,
+        flag_save=save,
+        save_dir=savedir,
+        save_config=save_config,
         scheduler=scheduler,
         clip_grad_norm=config.trainer.clip_gradients_norm,
         flag_wandb=use_wandb,
