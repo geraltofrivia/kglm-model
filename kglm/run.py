@@ -32,14 +32,14 @@ from loops import training_loop
 from eval import PenalizedPerplexity, Perplexity, Evaluator
 
 
-def enforce_reproducibility(seed: int = 42):
+def enforce_reproducibility(random_seed=13370, numpy_seed=1337, pytorch_seed=133):
     """
     Set the seed value all over the place to make this reproducible
     """
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    random.seed(random_seed)
+    np.random.seed(numpy_seed)
+    torch.manual_seed(pytorch_seed)
+    torch.cuda.manual_seed_all(pytorch_seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 

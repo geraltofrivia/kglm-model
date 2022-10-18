@@ -29,7 +29,20 @@ def normalize_entity_id(raw_entity_id: str) -> str:
     return entity_id
 
 
-class EnhancedWikitextKglmReader:
+class Singleton(type):
+    """
+    This class makes sure that self.alias_database = AliasDatabase.load(path=alias_database_path)
+    isnt called more that once
+
+    """
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class EnhancedWikitextKglmReader(metaclass=Singleton):
 
     def __init__(self,
                  alias_database_path: str,
@@ -72,6 +85,7 @@ class EnhancedWikitextKglmReader:
         #         not isinstance(self._relation_indexers['relations'], SingleIdTokenIndexer):
         #     raise ConfigurationError("EnhancedWikitextReader expects 'relation_indexers' to contain "
         #                              "a 'single_id' token indexer called 'relations'.")
+
         self.alias_database = AliasDatabase.load(path=alias_database_path)
 
     # @overrides
@@ -153,8 +167,8 @@ class EnhancedWikitextKglmReader:
                                 relations[i + mode_offset] = relation[:MAX_PARENTS]
                                 parent_ids[i + mode_offset] = parent_id[:MAX_PARENTS]
                             if self._mode == "generative":
-                                alias_copy_inds[i + mode_offset] = self.alias_database.token_to_uid(raw_entity_id,
-                                                                                                    tokens[i])      # TODO: alias copy inds not the same as original KGLM
+                                alias_copy_inds[i + mode_offset] = self.alias_database.token_to_uid(raw_entity_id, tokens[i])
+                                # TODO: alias_copy_inds not the same as original KGLM
                         # Now put in proper mention type for first token
                         start = annotation['span'][0]
                         if new_entity:
