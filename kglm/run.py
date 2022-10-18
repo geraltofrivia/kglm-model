@@ -11,10 +11,13 @@ import git
 import torch
 import wandb
 import click
+import random
+import numpy as np
 from functools import partial
 from mytorch.utils.goodies import FancyDict, get_commit_hash, mt_save_dir
 from torch.nn import Embedding, LSTM
 from typing import Any, Optional, Type
+
 
 # Local imports
 from tokenizer import SpacyTokenizer, SimpleTokenizer
@@ -28,6 +31,17 @@ from utils.misc import merge_configs
 from loops import training_loop
 from eval import PenalizedPerplexity, Perplexity, Evaluator
 
+
+def enforce_reproducibility(seed: int = 42):
+    """
+    Set the seed value all over the place to make this reproducible
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 def make_optimizer(
         model: torch.nn.Module,
@@ -136,7 +150,9 @@ def main(
 
     config = merge_configs(old=DEFAULTS, new=config)
 
-    # Lets try and ge the datareader to work
+    enforce_reproducibility()
+
+    # Lets try and ge the datareader to work        # TODO: do we need the alias database loaded twice?
     train_data = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')
     valid_data = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')  # , mode='discriminative')
 

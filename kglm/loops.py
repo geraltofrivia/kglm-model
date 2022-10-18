@@ -3,7 +3,7 @@
 '''
 
 '''
-from tqdm.auto import tqdm
+from tqdm.auto import trange, tqdm
 import torch.nn
 from typing import Callable, Dict, Optional, Type
 import numpy as np

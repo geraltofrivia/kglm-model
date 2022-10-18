@@ -154,7 +154,7 @@ class EnhancedWikitextKglmReader:
                                 parent_ids[i + mode_offset] = parent_id[:MAX_PARENTS]
                             if self._mode == "generative":
                                 alias_copy_inds[i + mode_offset] = self.alias_database.token_to_uid(raw_entity_id,
-                                                                                                    tokens[i])
+                                                                                                    tokens[i])      # TODO: alias copy inds not the same as original KGLM
                         # Now put in proper mention type for first token
                         start = annotation['span'][0]
                         if new_entity:
