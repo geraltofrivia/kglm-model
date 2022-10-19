@@ -459,7 +459,7 @@ class Kglm(Module):
                 shortlist: Dict[str, torch.Tensor] = None,
                 shortlist_inds: torch.Tensor = None,
                 alias_copy_inds: torch.Tensor = None,
-                **kwargs) -> Dict[str, torch.Tensor]:
+                **kwargs):
 
         # Tensorize the alias_database - this will only perform the operation once.
         alias_database = metadata[0]['alias_database']
