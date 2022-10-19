@@ -66,9 +66,9 @@ class Kglm(Module):
                  rel_vocab: Vocab,
                  raw_ent_vocab: Vocab,
                  tokens_vocab: Vocab,
-                 token_embedder: int,
-                 entity_embedder: int,
-                 relation_embedder: int,
+                 token_embeddings: torch.Tensor,
+                 entity_embeddings: torch.Tensor,
+                 relation_embeddings: torch.Tensor,
                  alias_encoder: LSTM,
                  knowledge_graph_path: str,
                  use_shortlist: bool,
@@ -87,10 +87,10 @@ class Kglm(Module):
 
         # We extract the `Embedding` layers from the `TokenEmbedders` to apply dropout later on.
         # pylint: disable=protected-access
-        self._token_embedder = Embedding(token_embedder, 400)
+        self._token_embedder = Embedding.from_pretrained(token_embeddings)
         self._token_embedder.weight.data.uniform_(-0.1, 0.1)
-        self._entity_embedder = Embedding(entity_embedder, 256)
-        self._relation_embedder = Embedding(relation_embedder, 256)
+        self._entity_embedder = Embedding.from_pretrained(entity_embeddings)
+        self._relation_embedder = Embedding.from_pretrained(relation_embeddings)
 
         self._alias_encoder = alias_encoder
         self._recent_entities = RecentEntities(cutoff=cutoff)

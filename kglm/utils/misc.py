@@ -1,6 +1,7 @@
 """ the bottom tier of random assortment of things. DO NOT IMPORT ANY LOCAL THING HERE.
 Avoid cyclic dependencies for a healthier and longer life. """
-from typing import Union
+from typing import Union, List, Tuple, Dict
+from pathlib import Path
 from mytorch.utils.goodies import FancyDict
 import torch
 
@@ -45,3 +46,51 @@ def merge_configs(old, new):
             new.__setattr__(k, v)
 
     return new
+
+
+def pull_embeddings_from_disk(p: Path, tok2id: Dict[str, int]) -> torch.Tensor:
+    """
+        Similar to AllenNLP's thing, we pull vectors from disk. And align them to the provided tok2id vocab.
+        If some elements are not found in the vocab, we randomly init them with a mean and std of the matrix we do have.
+    Parameters
+    ----------
+    p
+    tok2id
+
+    Returns
+    -------
+
+    """
+    if not p.exists():
+        raise FileNotFoundError(f"{str(p)} does not exist")
+
+    local_tok2id = {}
+    local_vectors = []
+    for line in p.open('r').readlines():
+        item, vector = line.split()[0], torch.tensor([float(x) for x in line.split()[1:]], dtype=torch.float)
+        local_tok2id[item] = len(local_tok2id)
+        local_vectors.append(vector)
+
+    local_vectors = torch.stack(local_vectors)
+    _mean, _std = torch.mean(local_vectors), torch.std(local_vectors)
+    _dim = local_vectors.shape[1]
+    vectors = torch.empty(len(tok2id), _dim).normal_(mean=_mean, std=_std)
+
+    # Try to align the vectors to the given vocab; and note the ones which don't fit.
+    # unknown_indices = []
+    for global_tok, global_index in tok2id.items():
+        try:
+            local_index = local_tok2id[global_tok]
+        except KeyError:
+            # unknown_indices.append(global_index)
+            continue
+        local_vector = local_vectors[local_index]
+        vectors[global_index] = local_vector
+
+    # unknown_vectors = torch.empty(len(unknown_indices), _dim).normal_(mean=_mean, std=_std)
+    # vectors[unknown_indices] = unknown_vectors
+
+    return vectors
+
+
+

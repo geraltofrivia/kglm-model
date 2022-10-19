@@ -27,7 +27,7 @@ from config import LOCATIONS as LOC, DEFAULTS, KNOWN_OPTIMIZERS as KNOWN_OC, KNO
 from utils.vocab import Vocab
 from models.kglm import Kglm
 from utils.exceptions import BadParameters
-from utils.misc import merge_configs
+from utils.misc import merge_configs, pull_embeddings_from_disk
 from loops import training_loop
 from eval import PenalizedPerplexity, Perplexity, Evaluator
 
@@ -42,6 +42,7 @@ def enforce_reproducibility(random_seed=13370, numpy_seed=1337, pytorch_seed=133
     torch.cuda.manual_seed_all(pytorch_seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
 
 def make_optimizer(
         model: torch.nn.Module,
@@ -223,9 +224,9 @@ def main(
         "rel_vocab": rel_vocab,
         "raw_ent_vocab": raw_ent_vocab,
         "tokens_vocab": tokens_vocab,
-        "token_embedder": len(tokens_vocab),
-        "entity_embedder": len(ent_vocab),
-        "relation_embedder": len(rel_vocab),
+        "token_embeddings": torch.randn(len(tokens_vocab), 400),
+        "entity_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.entities.txt', ent_vocab.tok_to_id),
+        "relation_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.relations.txt', rel_vocab.tok_to_id),
         "alias_encoder": LSTM(input_size=400, hidden_size=400, num_layers=3),
         "knowledge_graph_path": str(LOC.lw2 / "knowledge_graph.pkl"),
         "use_shortlist": False,
