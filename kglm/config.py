@@ -40,6 +40,7 @@ DEFAULTS = FancyDict(**{
     'split_size': 70,
     'max_alias_num': 4,
     'max_alias_tokens': 8,
+    'tie_weights': True,
 
     'trainer': FancyDict(**{
         'optimizer_class': 'adam',

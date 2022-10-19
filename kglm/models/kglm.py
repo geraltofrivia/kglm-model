@@ -85,8 +85,7 @@ class Kglm(Module):
                  dropoute: float = 0.1,
                  wdrop: float = 0.5,
                  alpha: float = 2.0,
-                 beta: float = 1.0,
-                 initializer: InitializerApplicator = InitializerApplicator()) -> None:
+                 beta: float = 1.0) -> None:
         super(Kglm, self).__init__()
 
         # We extract the `Embedding` layers from the `TokenEmbedders` to apply dropout later on.
@@ -209,8 +208,6 @@ class Kglm(Module):
         self._new_entity_accuracy20 = CategoricalAccuracy(top_k=20)
         self._parent_ppl = Ppl()
         self._relation_ppl = Ppl()
-
-        initializer(self)
 
     def predict_mention_type(self, encoded_token: torch.FloatTensor) -> torch.LongTensor:
         # Predict mention type

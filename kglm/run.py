@@ -231,6 +231,7 @@ def main(
         "use_shortlist": False,
         "hidden_size": 1150,
         "num_layers": 3,
+        "tie_weights": config.tie_weights
     }
     # text = "The colleague sitting next to me is [MASK]"
 
