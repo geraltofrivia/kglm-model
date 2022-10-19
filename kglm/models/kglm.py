@@ -69,9 +69,9 @@ class Kglm(Module):
                  # token_embedder: TextFieldEmbedder,
                  # entity_embedder: TextFieldEmbedder,
                  # relation_embedder: TextFieldEmbedder,
-                 token_embedder: Embedding,
-                 entity_embedder: Embedding,
-                 relation_embedder: Embedding,
+                 token_embedder: int,
+                 entity_embedder: int,
+                 relation_embedder: int,
                  alias_encoder: LSTM,
                  knowledge_graph_path: str,
                  use_shortlist: bool,
@@ -101,10 +101,11 @@ class Kglm(Module):
         # self._entity_embedder = entity_embedder(torch.LongTensor(list(range(len(ent_vocab)))))
         # self._relation_embedder = relation_embedder # (torch.LongTensor(list(range(len(rel_vocab)))))
 
-        self._token_embedder = token_embedder
-        self._token_embedder.weight.data.uniform_(-1, 1)
-        self._entity_embedder = entity_embedder
-        self._relation_embedder = relation_embedder
+        self._token_embedder = Embedding(token_embedder, 400)
+        self._token_embedder.weight.data.uniform_(-0.1, 0.1)
+
+        self._entity_embedder = Embedding(entity_embedder, 256)
+        self._relation_embedder = Embedding(relation_embedder, 256)
 
         self._alias_encoder = alias_encoder
         self._recent_entities = RecentEntities(cutoff=cutoff)
