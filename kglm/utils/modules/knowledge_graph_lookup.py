@@ -36,7 +36,8 @@ class KnowledgeGraphLookup:
         entity_idx_to_token = self._ent_vocab.id_to_tok
         all_relations: List[torch.Tensor] = []
         all_tail_ids: List[torch.Tensor] = []
-        for i in tqdm(range(len(entity_idx_to_token))):
+        for i in tqdm(range(len(entity_idx_to_token)),
+                      desc=f"Loading knowledge graph from: {knowledge_graph_path}.", position=0, leave=True):
             entity_id = entity_idx_to_token[i]
             try:
                 edges = knowledge_graph[entity_id]

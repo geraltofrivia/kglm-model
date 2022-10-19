@@ -66,7 +66,7 @@ class AliasDatabase:
     @classmethod
     def load(cls, path: str):
 
-        logger.info('Loading alias database from "%s". This will probably take a second.', path)
+        logger.info('Loading alias database from: "%s". This will probably take a second.', path)
         tokenizer = SpacyTokenizer()
         token_lookup: Dict[str, AliasList] = {}
         id_map_lookup: Dict[str, Dict[str, int]] = {}
@@ -77,7 +77,8 @@ class AliasDatabase:
         with open(path, 'rb') as f:
             alias_lookup = pickle.load(f)
 
-        for entity, aliases in tqdm(alias_lookup.items()):
+        for entity, aliases in tqdm(alias_lookup.items(),
+                                    desc=f"Loading alias database from: {path}.", position=0, leave=True):
             # Reverse token to potential entity lookup
             for alias in aliases:
                 for token in tokenizer.tokenize(alias):

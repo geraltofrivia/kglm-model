@@ -249,7 +249,8 @@ class FancyIterator:
             # instance_list = instance_list[:50]
 
             for instance in tqdm(instance_list,
-                                 desc=f"Splitting {len(instance_list)} instances into chunks before batching"):
+                                 desc=f"Splitting {len(instance_list)} instances into chunks before batching",
+                                 position=0, leave=True):
                 # Now we split the instance into chunks.
                 chunks, length = self._split_instance(instance.asdict())
 
