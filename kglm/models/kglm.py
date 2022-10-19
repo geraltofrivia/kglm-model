@@ -66,9 +66,6 @@ class Kglm(Module):
                  rel_vocab: Vocab,
                  raw_ent_vocab: Vocab,
                  tokens_vocab: Vocab,
-                 # token_embedder: TextFieldEmbedder,
-                 # entity_embedder: TextFieldEmbedder,
-                 # relation_embedder: TextFieldEmbedder,
                  token_embedder: int,
                  entity_embedder: int,
                  relation_embedder: int,
@@ -90,19 +87,8 @@ class Kglm(Module):
 
         # We extract the `Embedding` layers from the `TokenEmbedders` to apply dropout later on.
         # pylint: disable=protected-access
-
-        # self._token_embedder = token_embedder._token_embedders['tokens']
-        # self._entity_embedder = entity_embedder._token_embedders['entity_ids']
-        # self._relation_embedder = relation_embedder._token_embedders['relations']
-
-
-        # self._token_embedder = token_embedder(torch.LongTensor(list(range(len(tokens_vocab)))))
-        # self._entity_embedder = entity_embedder(torch.LongTensor(list(range(len(ent_vocab)))))
-        # self._relation_embedder = relation_embedder # (torch.LongTensor(list(range(len(rel_vocab)))))
-
         self._token_embedder = Embedding(token_embedder, 400)
         self._token_embedder.weight.data.uniform_(-0.1, 0.1)
-
         self._entity_embedder = Embedding(entity_embedder, 256)
         self._relation_embedder = Embedding(relation_embedder, 256)
 
@@ -138,12 +124,6 @@ class Kglm(Module):
         self._beta = beta
 
         # RNN Encoders.
-        # entity_embedding_dim = entity_embedder.get_output_dim()
-        # token_embedding_dim = token_embedder.get_output_dim()
-
-        # self.entity_embedding_dim = self._entity_embedder.size(-1)
-        # self.token_embedding_dim = self._token_embedder.size(-1)
-
         self.entity_embedding_dim = self._entity_embedder.weight.size(-1)
         self.token_embedding_dim = self._token_embedder.weight.size(-1)
 
