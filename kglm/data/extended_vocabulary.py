@@ -13,7 +13,6 @@ from allennlp.common.tqdm import Tqdm
 from allennlp.data import instance as adi  # pylint: disable=unused-import
 from allennlp.data.vocabulary import _read_pretrained_tokens, namespace_match, pop_max_vocab_size
 from allennlp.data.vocabulary import Vocabulary
-from overrides import overrides
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +136,6 @@ class ExtendedVocabulary(Vocabulary):
                 self.add_token_to_namespace(token, namespace)
 
     @classmethod
-    @overrides
     def from_instances(cls,
                        instances: Iterable['adi.Instance'],
                        min_count: Dict[str, int] = None,

@@ -17,7 +17,6 @@ from allennlp.nn.util import (get_text_field_mask, masked_log_softmax, masked_so
     sequence_cross_entropy_with_logits)
 from allennlp.training.metrics import Average, CategoricalAccuracy, F1Measure
 
-from overrides import overrides
 import torch
 import torch.nn.functional as F
 
@@ -425,7 +424,6 @@ class Kglm(Module):
 
         return out_dict
 
-    @overrides
     def forward(self,  # pylint: disable=arguments-differ
                 source: Dict[str, torch.Tensor],
                 reset: torch.Tensor,
@@ -1125,7 +1123,6 @@ class Kglm(Module):
 
         return vocab_loss, penalized_vocab_loss
 
-    @overrides
     def train(self, mode=True):
         # TODO: This is a temporary hack to ensure that the internal state resets when the model
         # switches from training to evaluation. The complication arises from potentially differing
@@ -1134,7 +1131,6 @@ class Kglm(Module):
         super().train(mode)
         self._state = None
 
-    @overrides
     def eval(self):
         # TODO: See train.
         super().eval()

@@ -6,7 +6,6 @@
 import torch
 import numpy as np
 from typing import Dict
-from overrides import overrides
 from allennlp.data.fields import ArrayField, SequenceField
 
 
@@ -24,11 +23,9 @@ class SequentialArrayField(ArrayField, SequenceField):
         self._dtype = dtype
         self._sequence_dim = sequence_dim
 
-    @overrides
     def sequence_length(self) -> int:
         return self.array.shape[self._sequence_dim]
 
-    @overrides
     def as_tensor(self, padding_lengths: Dict[str, int]) -> torch.Tensor:
         max_shape = [padding_lengths["dimension_{}".format(i)]
                      for i in range(len(padding_lengths))]
@@ -46,7 +43,7 @@ class SequentialArrayField(ArrayField, SequenceField):
         tensor = torch.from_numpy(return_array)
         return tensor
 
-    @overrides
+    # @overrides
     def empty_field(self):  # pylint: disable=no-self-use
         # Pass the padding_value, so that any outer field, e.g., `ListField[ArrayField]` uses the
         # same padding_value in the padded ArrayFields
