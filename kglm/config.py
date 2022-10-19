@@ -36,7 +36,7 @@ KNOWN_OPTIMIZERS = ['adam', 'sgd']
 KNOWN_SCHEDULERS = ['gamma', 'constant', 'none']
 
 DEFAULTS = FancyDict(**{
-    'batch_size':  10,      # TODO: original config sets this to 60
+    'batch_size':  60,
     'split_size': 70,
     'max_alias_num': 4,
     'max_alias_tokens': 8,

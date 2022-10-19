@@ -102,6 +102,7 @@ class Kglm(Module):
         # self._relation_embedder = relation_embedder # (torch.LongTensor(list(range(len(rel_vocab)))))
 
         self._token_embedder = token_embedder
+        self._token_embedder.weight.data.uniform_(-1, 1)
         self._entity_embedder = entity_embedder
         self._relation_embedder = relation_embedder
 
