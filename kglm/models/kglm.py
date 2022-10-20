@@ -5,7 +5,7 @@ Goal: Completely remove AllenNLP dependencies
 from collections import defaultdict
 import logging
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 # AllenNLP imports
 # from allennlp.data.vocabulary import Vocabulary
@@ -67,7 +67,7 @@ class Kglm(Module):
                  token_embeddings: torch.Tensor,
                  entity_embeddings: torch.Tensor,
                  relation_embeddings: torch.Tensor,
-                 alias_encoder_shapes: Tuple[int, int, int],
+                 alias_encoder_config: Type[dict],
                  knowledge_graph_path: str,
                  use_shortlist: bool,
                  hidden_size: int,
@@ -90,11 +90,7 @@ class Kglm(Module):
         self._entity_embedder = Embedding.from_pretrained(entity_embeddings)
         self._relation_embedder = Embedding.from_pretrained(relation_embeddings)
 
-        self._alias_encoder = AllenNLPLSTMEncoder(
-            input_size=alias_encoder_shapes[0],
-            hidden_size=alias_encoder_shapes[1],
-            num_layers=alias_encoder_shapes[2],
-        )
+        self._alias_encoder = AllenNLPLSTMEncoder(**alias_encoder_config)
         self._recent_entities = RecentEntities(cutoff=cutoff)
         self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path,
                                                                     ent_vocab,
