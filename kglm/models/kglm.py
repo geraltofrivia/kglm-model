@@ -990,11 +990,11 @@ class Kglm(Module):
         mask = flattened.gt(0)
         # problem here is that originally alias_encoder is a Seq2Seq module now its an LSTM
         # we need a way to apply the LSTM only on the part of the input that is not MASKED, e.g. only for True indices
-        # encoded_aliases = self._alias_encoder(embedded, mask)
-        encoded_aliases = self._alias_encoder(embedded)[0]
+        encoded_aliases = self._alias_encoder(embedded, mask)
+        # encoded_aliases = self._alias_encoder(embedded)[0]
         # Try applying the mask after computing the scores from the LSTM
-        mask = mask.unsqueeze(-1).expand(2800, 8, 400)
-        encoded_aliases = encoded_aliases * mask
+        # mask = mask.unsqueeze(-1).expand(2800, 8, 400)
+        # encoded_aliases = encoded_aliases * mask
 
 
         # Equation 8 in the CopyNet paper recommends applying the additional step.
