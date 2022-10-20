@@ -31,14 +31,13 @@ except ImportError:
 
 from config import LOCATIONS as LOC
 from utils.vocab import Vocab
-
 from utils.alias import AliasDatabase
-
-from utils.modules.embed_regularize import embedded_dropout
-from utils.modules.locked_dropout import LockedDropout
-from utils.modules.weight_drop import WeightDrop
-from utils.modules.knowledge_graph_lookup import KnowledgeGraphLookup
-from utils.modules.recent_entities import RecentEntities
+from models.modules.embed_regularize import embedded_dropout
+from models.modules.locked_dropout import LockedDropout
+from models.modules.weight_drop import WeightDrop
+from models.modules.knowledge_graph_lookup import KnowledgeGraphLookup
+from models.modules.recent_entities import RecentEntities
+from models.modules.rnns import AllenNLPLSTMEncoder
 
 from utils.nn.util import nested_enumerate, parallel_sample
 
@@ -91,10 +90,10 @@ class Kglm(Module):
         self._entity_embedder = Embedding.from_pretrained(entity_embeddings)
         self._relation_embedder = Embedding.from_pretrained(relation_embeddings)
 
-        self._alias_encoder = LSTM(
+        self._alias_encoder = AllenNLPLSTMEncoder(
             input_size=alias_encoder_shapes[0],
             hidden_size=alias_encoder_shapes[1],
-            num_layers=alias_encoder_shapes[2]
+            num_layers=alias_encoder_shapes[2],
         )
         self._recent_entities = RecentEntities(cutoff=cutoff)
         self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path,

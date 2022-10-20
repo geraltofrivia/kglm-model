@@ -23,7 +23,7 @@ from typing import Any, Optional, Type
 from tokenizer import SpacyTokenizer, SimpleTokenizer
 from datareaders import EnhancedWikitextKglmReader
 from dataiters import FancyIterator
-from config import LOCATIONS as LOC, DEFAULTS, KNOWN_OPTIMIZERS as KNOWN_OC, KNOWN_SCHEDULERS, SCHEDULER_DEFAULTS
+from config import LOCATIONS as LOC, DEFAULTS, KNOWN_OPTIMIZERS as KNOWN_OC, KNOWN_SCHEDULERS, EMBEDDING_DIM as EMBDIM
 from utils.vocab import Vocab
 from models.kglm import Kglm
 from utils.exceptions import BadParameters
@@ -92,7 +92,7 @@ def make_scheduler(opt, lr_schedule: Optional[str]) -> Optional[Type[torch.optim
         return None
 
     if lr_schedule == 'gamma':
-        lambda1 = lambda epoch: SCHEDULER_DEFAULTS['gamma']['decay_rate'] ** epoch
+        lambda1 = lambda epoch: DEFAULTS.trainer.scheduler.gamma.decay_rate ** epoch
         scheduler = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda=lambda1)
         return scheduler
 
@@ -224,10 +224,12 @@ def main(
         "rel_vocab": rel_vocab,
         "raw_ent_vocab": raw_ent_vocab,
         "tokens_vocab": tokens_vocab,
-        "token_embeddings": torch.randn(len(tokens_vocab), 400),
+        "token_embeddings": torch.randn(len(tokens_vocab), EMBDIM.tokens),
         "entity_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.entities.txt', ent_vocab.tok_to_id),
         "relation_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.relations.txt', rel_vocab.tok_to_id),
-        "alias_encoder_shapes": (400, 400, 3), #LSTM(input_size=400, hidden_size=400, num_layers=3),
+        "alias_encoder_shapes": (config.alias_encoder.input_size,
+                                 config.alias_encoder.output_size,
+                                 config.alias_encoder.num_layers),
         "knowledge_graph_path": str(LOC.lw2 / "knowledge_graph.pkl"),
         "use_shortlist": False,
         "hidden_size": 1150,

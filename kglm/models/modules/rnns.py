@@ -8,7 +8,7 @@ import torch
 from torch.nn.utils.rnn import pack_padded_sequence, PackedSequence, pad_packed_sequence
 
 # Local imports
-from models.nnutils import batch_tensor_dicts, sort_batch_by_length
+from utils.nn.util import batch_tensor_dicts, sort_batch_by_length
 from utils.exceptions import ConfigurationError
 
 # We have two types here for the state, because storing the state in something
@@ -19,7 +19,7 @@ RnnState = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]  # pylint: dis
 RnnStateStorage = Tuple[torch.Tensor, ...]  # pylint: disable=invalid-name
 
 
-class PytorchSeq2SeqWrapper(torch.nn.Module):
+class AllenNLPLSTMEncoder(torch.nn.Module):
     """
 
     Pytorch's RNNs have two outputs: the hidden state for every time step, and the hidden state at
@@ -48,8 +48,8 @@ class PytorchSeq2SeqWrapper(torch.nn.Module):
             input_size: int,
             hidden_size: int,
             num_layers: int,
-            bias: bool,
-            dropout: float,
+            bias: bool = True,
+            dropout: float = 0.0,
             bidirectional: bool = True,
             stateful: bool = False) -> None:
         super().__init__()
@@ -73,10 +73,8 @@ class PytorchSeq2SeqWrapper(torch.nn.Module):
             self._is_bidirectional = self._module.bidirectional
         except AttributeError:
             self._is_bidirectional = False
-        if self._is_bidirectional:
-            self._num_directions = 2
-        else:
-            self._num_directions = 1
+        self._num_directions = 2 if self._is_bidirectional else 1
+        self.stateful = stateful
 
     def get_input_dim(self) -> int:
         return self._module.input_size

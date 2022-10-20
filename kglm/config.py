@@ -35,6 +35,12 @@ DEFAULT_EOS_TOKEN = '@@END@@'
 KNOWN_OPTIMIZERS = ['adam', 'sgd']
 KNOWN_SCHEDULERS = ['gamma', 'constant', 'none']
 
+EMBEDDING_DIM = FancyDict(**{
+    'tokens': 400,
+    'entities': 256,
+    'relations': 256
+})
+
 DEFAULTS = FancyDict(**{
     'batch_size':  60,
     'split_size': 70,
@@ -51,11 +57,16 @@ DEFAULTS = FancyDict(**{
         'clip_gradients_norm': 0.0,     # TODO: maybe you need to actually clip grads
         'learning_rate': 3e-4,
         'weight_decay': 1.2e-6,
+        'scheduler': FancyDict(**{
+            'gamma': {'decay_rate': 0.9},
+            'none': {},
+            'constant': {}
+        }),
+    }),
+    'alias_encoder': FancyDict(**{
+        'input_size': EMBEDDING_DIM.tokens,
+        'output_size': EMBEDDING_DIM.tokens,
+        'num_layers': 3
     }),
 })
 
-SCHEDULER_DEFAULTS = FancyDict(**{
-    'gamma': {'decay_rate': 0.9},
-    'none': {},
-    'constant': {}
-})
