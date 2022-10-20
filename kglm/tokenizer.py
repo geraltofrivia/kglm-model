@@ -156,7 +156,11 @@ class Tokenizer(ABC):
         for instance in texts:
             outputs.append(self.batch_convert(instance, pad=True, to='torch', max_len=max_depth))
 
-        return torch.stack(outputs, dim=0)
+        try:
+            return torch.stack(outputs, dim=0)
+        except RuntimeError as e:
+            print('potato')
+            raise e
 
 
 class SimpleTokenizer(Tokenizer):
