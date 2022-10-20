@@ -5,7 +5,7 @@ Goal: Completely remove AllenNLP dependencies
 from collections import defaultdict
 import logging
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # AllenNLP imports
 # from allennlp.data.vocabulary import Vocabulary
@@ -68,7 +68,7 @@ class Kglm(Module):
                  token_embeddings: torch.Tensor,
                  entity_embeddings: torch.Tensor,
                  relation_embeddings: torch.Tensor,
-                 alias_encoder: LSTM,
+                 alias_encoder_shapes: Tuple[int, int, int],
                  knowledge_graph_path: str,
                  use_shortlist: bool,
                  hidden_size: int,
@@ -91,7 +91,11 @@ class Kglm(Module):
         self._entity_embedder = Embedding.from_pretrained(entity_embeddings)
         self._relation_embedder = Embedding.from_pretrained(relation_embeddings)
 
-        self._alias_encoder = alias_encoder
+        self._alias_encoder = LSTM(
+            input_size=alias_encoder_shapes[0],
+            hidden_size=alias_encoder_shapes[1],
+            num_layers=alias_encoder_shapes[2]
+        )
         self._recent_entities = RecentEntities(cutoff=cutoff)
         self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path,
                                                                     ent_vocab,
@@ -172,7 +176,7 @@ class Kglm(Module):
 
         # Metrics
         self._unk_index = tokens_vocab.unk
-        self._unk_penalty = math.log(len(tokens_vocab))
+        self._unk_penalty = math.log(47425) # TODO: this is length of tokens_unk.txt file. We hardcode it for now.
         self._ppl = Ppl()
         self._upp = Ppl()
         self._kg_ppl = Ppl()  # Knowledge-graph ppl

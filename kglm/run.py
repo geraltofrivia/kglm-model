@@ -227,7 +227,7 @@ def main(
         "token_embeddings": torch.randn(len(tokens_vocab), 400),
         "entity_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.entities.txt', ent_vocab.tok_to_id),
         "relation_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.relations.txt', rel_vocab.tok_to_id),
-        "alias_encoder": LSTM(input_size=400, hidden_size=400, num_layers=3),
+        "alias_encoder_shapes": (400, 400, 3), #LSTM(input_size=400, hidden_size=400, num_layers=3),
         "knowledge_graph_path": str(LOC.lw2 / "knowledge_graph.pkl"),
         "use_shortlist": False,
         "hidden_size": 1150,
