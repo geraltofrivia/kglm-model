@@ -751,6 +751,8 @@ class Kglm(Module):
                 prev_hidden = None
             # Forward-pass.
             output, hidden = rnn(current_input, prev_hidden)
+            # contiguous() makes a copy of the tensor such that the order of its elements in memory
+            # is the same as if it had been created from scratch with the same data.
             output = output.contiguous()
             # Update hidden state for layer.
             hidden = tuple(h.detach() for h in hidden)

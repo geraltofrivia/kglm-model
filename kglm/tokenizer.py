@@ -158,6 +158,7 @@ class Tokenizer(ABC):
 
         try:
             return torch.stack(outputs, dim=0)
+            # TODO: RuntimeError: stack expects each tensor to be equal size, but got [70, 6] at entry 0 and [52, 6] at entry 54
         except RuntimeError as e:
             print('potato')
             raise e
