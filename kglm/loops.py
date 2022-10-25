@@ -64,7 +64,7 @@ def training_loop(
             optim.zero_grad()
 
             instance = change_device(instance, device)
-
+            instance['source']['words'].to(device)
             outputs = forward_fn(**instance)
             loss = outputs['loss']
 
