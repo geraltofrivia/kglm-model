@@ -83,6 +83,7 @@ class Kglm(Module):
                  beta: float = 1.0) -> None:
         super(Kglm, self).__init__()
 
+        self._device = token_embeddings.device
         # We extract the `Embedding` layers from the `TokenEmbedders` to apply dropout later on.
         # pylint: disable=protected-access
         self._token_embedder = Embedding.from_pretrained(token_embeddings)
@@ -90,7 +91,7 @@ class Kglm(Module):
         self._entity_embedder = Embedding.from_pretrained(entity_embeddings)
         self._relation_embedder = Embedding.from_pretrained(relation_embeddings)
 
-        self._alias_encoder = AllenNLPLSTMEncoder(**alias_encoder_config)
+        self._alias_encoder = AllenNLPLSTMEncoder(**alias_encoder_config).to(self._device)
         self._recent_entities = RecentEntities(cutoff=cutoff)
         self._knowledge_graph_lookup = KnowledgeGraphLookup(knowledge_graph_path,
                                                                     ent_vocab,
@@ -137,32 +138,32 @@ class Kglm(Module):
                 output_size = hidden_size
             rnns.append(torch.nn.LSTM(input_size, output_size, batch_first=True))
         rnns = [WeightDrop(rnn, ['weight_hh_l0'], dropout=wdrop) for rnn in rnns]
-        self.rnns = torch.nn.ModuleList(rnns)
+        self.rnns = torch.nn.ModuleList(rnns).to(self._device)
 
         # Various linear transformations.
         self._fc_mention_type = torch.nn.Linear(
             in_features=self.token_embedding_dim,
-            out_features=4)
+            out_features=4).to(self._device)
 
         if not use_shortlist:
             self._fc_new_entity = torch.nn.Linear(
                 in_features=self.entity_embedding_dim,
-                out_features=len(ent_vocab))
+                out_features=len(ent_vocab)).to(self._device)
 
             if tie_weights:
                 self._fc_new_entity.weight = self._entity_embedder.weight
 
         self._fc_condense = torch.nn.Linear(
             in_features=self.token_embedding_dim + self.entity_embedding_dim,
-            out_features=self.token_embedding_dim)
+            out_features=self.token_embedding_dim).to(self._device)
 
         self._fc_generate = torch.nn.Linear(
             in_features=self.token_embedding_dim,
-            out_features=len(tokens_vocab))
+            out_features=len(tokens_vocab)).to(self._device)
 
         self._fc_copy = torch.nn.Linear(
             in_features=self.token_embedding_dim,
-            out_features=self.token_embedding_dim)
+            out_features=self.token_embedding_dim).to(self._device)
 
         if tie_weights:
             self._fc_generate.weight = self._token_embedder.weight

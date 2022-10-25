@@ -98,7 +98,6 @@ class AllenNLPLSTMEncoder(torch.nn.Module):
             return self._module(inputs, hidden_state)[0]
 
         batch_size, total_sequence_length = mask.size()
-
         packed_sequence_output, final_states, restoration_indices = self.sort_and_run_forward(
             inputs, mask, hidden_state
         )
