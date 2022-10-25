@@ -224,7 +224,7 @@ def main(
         "rel_vocab": rel_vocab,
         "raw_ent_vocab": raw_ent_vocab,
         "tokens_vocab": tokens_vocab,
-        "token_embeddings": torch.randn(len(tokens_vocab), EMBDIM.tokens),
+        "token_embeddings": torch.randn(len(tokens_vocab), EMBDIM.tokens).to(device),
         "entity_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.entities.txt', ent_vocab.tok_to_id),
         "relation_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.relations.txt', rel_vocab.tok_to_id),
         "alias_encoder_config": config.alias_encoder,
