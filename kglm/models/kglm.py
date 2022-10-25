@@ -922,7 +922,6 @@ class Kglm(Module):
             # First we compute the score for each relation w.r.t the current encoding, and convert
             # the scores to _log-probabilities
             logits = torch.mv(relation_embedding, encoded[index[:-1]])
-            ''' RuntimeError: vector + matrix @ vector expected, got 1, 1, 1'''
             # logger.debug('Relation logits shape: %s', logits.shape)
             log_probs = F.log_softmax(logits, dim=-1)
 
