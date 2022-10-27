@@ -10,7 +10,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from collections import deque
 from dataclasses import fields
-from typing import List, Tuple, Iterable, Dict, Deque, Optional
+from typing import List, Tuple, Iterable, Dict, Deque, Optional, Union
 
 # Local Imports
 try:
@@ -73,6 +73,16 @@ class FancyIterator:
         self.rel_tokenizer = rel_tokenizer
         self.ent_tokenizer = ent_tokenizer
         self.raw_ent_tokenizer = raw_ent_tokenizer
+
+    @staticmethod
+    def _safely_convert_(data, padint):
+        """ Expects List[ List[int/float]/numpy arrays] and pads them to convert them, converts them to a torch tensor """
+        maxlen = max(len(item) for item in data)
+        tensor = torch.zeros(len(data), maxlen) + padint
+        for i, item in enumerate(data):
+            tensor[i, :len(item)] = torch.tensor(item)
+
+        return tensor
 
     def _batch_convert_(self, batch: List[Instance], alias_database: AliasDatabase):
         """
@@ -162,8 +172,9 @@ class FancyIterator:
 
         # Fix shortlist indices
         if batch[0].shortlist_inds is not None:
-            shortlist_ind_values = np.array([instance.shortlist_inds for instance in batch])
-            outputs['shortlist_inds']: torch.Tensor = torch.tensor(shortlist_ind_values)
+            outputs['shortlist_inds']: torch.Tensor = self._safely_convert_(
+                data=[instance.shortlist_inds for instance in batch], padint=0.0
+            ) # TODO: can this change? If so, change!
 
         # Fix reset
         if batch[0].reset is not None:
@@ -172,13 +183,17 @@ class FancyIterator:
 
         # Fix mention types
         if batch[0].mention_type is not None:
-            mention_type_values = np.array([instance.mention_type for instance in batch])
-            outputs['mention_type']: torch.Tensor = torch.tensor(mention_type_values)
+            # mention_type_value/s = np.array([instance.mention_type for instance in batch])
+            outputs['mention_type']: torch.Tensor = self._safely_convert_(
+                data=[instance.mention_type for instance in batch], padint=0.0
+            )
 
         # Fix shortlist indices
         if batch[0].alias_copy_inds is not None:
-            alias_copy_ind_values = np.array([instance.alias_copy_inds for instance in batch])
-            outputs['alias_copy_inds']: torch.Tensor = torch.tensor(alias_copy_ind_values)
+            # alias_copy_ind_values = np.array([instance.alias_copy_inds for instance in batch])
+            outputs['alias_copy_inds']: torch.Tensor = self._safely_convert_(
+                data=[instance.alias_copy_inds for instance in batch], padint=0.0
+            )
 
         # # Go through all text fields in instance and convert them to nice crisp tensors
         # relevant_fields = ['source', 'target']
@@ -248,9 +263,9 @@ class FancyIterator:
             # # TODO: REMOVE THIS SUPER URGENTLY!!!!!
             # instance_list = instance_list[:50]
 
-            for instance in tqdm(instance_list,
+            for i, instance in enumerate(tqdm(instance_list,
                                  desc=f"Splitting {len(instance_list)} instances into chunks before batching",
-                                 position=0, leave=True):
+                                 position=0, leave=True)):
                 # Now we split the instance into chunks.
                 chunks, length = self._split_instance(instance.asdict())
 
@@ -269,7 +284,7 @@ class FancyIterator:
             #         new_fields[name] = []
             blank_instance = Instance.empty()
 
-            for batch in self._generate_batches(queues, blank_instance):
+            for i, batch in enumerate(self._generate_batches(queues, blank_instance)):
                 # if self.vocab is not None:
                 #     # This changes text fields into vocabularized ints
                 #     # batch.index_instances(self.vocab)
@@ -279,6 +294,7 @@ class FancyIterator:
                 # # this pads and converts to torch tensors.
                 # # we could do both things here if needed
                 # yield batch.as_tensor_dict(padding_lengths), 1
+
                 yield self._batch_convert_(batch, alias_database=alias_database)
 
     def _split_instance(self, instance: Dict) -> Tuple[List[Instance], int]:

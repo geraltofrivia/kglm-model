@@ -111,7 +111,7 @@ class Tokenizer(ABC):
 
             padding_id = self.vocab[DEFAULT_PAD_TOKEN]
 
-            # Trim things to max len
+            # Trim things to max lenpotatopotato
             if max_len > 0:
                 biggest_seq = min(biggest_seq, max_len)
 
@@ -158,10 +158,16 @@ class Tokenizer(ABC):
 
         try:
             return torch.stack(outputs, dim=0)
-            # TODO: RuntimeError: stack expects each tensor to be equal size, but got [70, 6] at entry 0 and [52, 6] at entry 54
         except RuntimeError as e:
-            print('potato')
-            raise e
+            # This is probably happening because one of the elements in outputs is not the right size.
+            # Let's see if we can't force it
+            max_length = max(len(instance) for instance in texts)
+
+            for i, tensor in enumerate(outputs):
+                if tensor.shape[0] != max_length:
+                    outputs[i] =  torch.nn.functional.pad(tensor, (0, 0, 0, max_length-tensor.shape[0]), "constant",
+                                                          self.vocab[DEFAULT_PAD_TOKEN])
+            return torch.stack(outputs, dim=0)
 
 
 class SimpleTokenizer(Tokenizer):
