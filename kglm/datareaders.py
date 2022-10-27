@@ -29,20 +29,7 @@ def normalize_entity_id(raw_entity_id: str) -> str:
     return entity_id
 
 
-class Singleton(type):
-    """
-    This class makes sure that self.alias_database = AliasDatabase.load(path=alias_database_path)
-    isnt called more that once
-
-    """
-    _instances = {}
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
-class EnhancedWikitextKglmReader(metaclass=Singleton):
+class EnhancedWikitextKglmReader:
 
     def __init__(self,
                  alias_database_path: str,
@@ -63,29 +50,6 @@ class EnhancedWikitextKglmReader(metaclass=Singleton):
             raise ConfigurationError("Got mode {}, expected one of 'generative'"
                                      "or 'discriminative'".format(mode))
         self._mode = mode
-
-        # self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
-        # self._entity_indexers = entity_indexers or {'entity_ids': SingleIdTokenIndexer(namespace='entity_ids')}
-        # self._raw_entity_indexers = raw_entity_indexers or {
-        #     'raw_entity_ids': SingleIdTokenIndexer(namespace='raw_entity_ids')}
-        # self._relation_indexers = relation_indexers or {'relations': SingleIdTokenIndexer(namespace='relations')}
-        # if 'tokens' not in self._token_indexers or \
-        #         not isinstance(self._token_indexers['tokens'], SingleIdTokenIndexer):
-        #     raise ConfigurationError("EnhancedWikitextReader expects 'token_indexers' to contain "
-        #                              "a 'single_id' token indexer called 'tokens'.")
-        # if 'entity_ids' not in self._entity_indexers or \
-        #         not isinstance(self._entity_indexers['entity_ids'], SingleIdTokenIndexer):
-        #     raise ConfigurationError("EnhancedWikitextReader expects 'entity_indexers' to contain "
-        #                              "a 'single_id' token indexer called 'entity_ids'.")
-        # if 'raw_entity_ids' not in self._raw_entity_indexers or \
-        #         not isinstance(self._raw_entity_indexers['raw_entity_ids'], SingleIdTokenIndexer):
-        #     raise ConfigurationError("EnhancedWikitextReader expects 'raw_entity_indexers' to contain "
-        #                              "a 'single_id' token indexer called 'raw_entity_ids'.")
-        # if 'relations' not in self._relation_indexers or \
-        #         not isinstance(self._relation_indexers['relations'], SingleIdTokenIndexer):
-        #     raise ConfigurationError("EnhancedWikitextReader expects 'relation_indexers' to contain "
-        #                              "a 'single_id' token indexer called 'relations'.")
-
         self.alias_database = AliasDatabase.load(path=alias_database_path)
 
     # @overrides
@@ -189,69 +153,6 @@ class EnhancedWikitextKglmReader(metaclass=Singleton):
                     mention_type=mention_type,
                     alias_copy_inds=alias_copy_inds
                 )
-
-                # yield self.text_to_instance(source,
-                #                             target,
-                #                             shortlist,
-                #                             reverse_shortlist,
-                #                             raw_entity_ids,
-                #                             entity_ids,
-                #                             relations,
-                #                             parent_ids,
-                #                             shortlist_inds,
-                #                             mention_type,
-                #                             alias_copy_inds)
-
-    # # noinspection PyTypeChecker
-    # # @overrides
-    # def text_to_instance(self,
-    #                      source,
-    #                      target=None,
-    #                      shortlist=None,
-    #                      reverse_shortlist=None,
-    #                      raw_entity_ids=None,
-    #                      entity_ids=None,
-    #                      relations=None,
-    #                      parent_ids=None,
-    #                      shortlist_inds=None,
-    #                      mention_type=None,
-    #                      alias_copy_inds=None) -> Instance:  # pylint: disable=arguments-differ
-    #     metadata = {
-    #         'source_tokens': source,
-    #         'alias_database': self._alias_database
-    #     }
-    #     fields = {
-    #         'metadata': MetadataField(metadata),
-    #         'source': TextField(tokenize(source), self._token_indexers),
-    #     }
-    #
-    #     if target is not None:
-    #         fields['target'] = TextField(tokenize(target), self._token_indexers)
-    #         metadata['target_tokens'] = target
-    #     if shortlist is not None:
-    #         fields['shortlist'] = TextField(tokenize(shortlist), self._entity_indexers)
-    #     if raw_entity_ids is not None:
-    #         fields['raw_entity_ids'] = TextField(tokenize(raw_entity_ids), self._raw_entity_indexers)
-    #     if entity_ids is not None:
-    #         fields['entity_ids'] = TextField(tokenize(entity_ids), self._entity_indexers)
-    #     if parent_ids is not None:
-    #         fields['parent_ids'] = ListField([
-    #             TextField(tokenize(sublist),
-    #                       token_indexers=self._entity_indexers)
-    #             for sublist in parent_ids])
-    #     if relations is not None:
-    #         fields['relations'] = ListField([
-    #             TextField(tokenize(sublist),
-    #                       token_indexers=self._relation_indexers)
-    #             for sublist in relations])
-    #     if mention_type is not None:
-    #         fields['mention_type'] = SequentialArrayField(mention_type, dtype=np.int64)
-    #     if shortlist_inds is not None:
-    #         fields['shortlist_inds'] = SequentialArrayField(shortlist_inds, dtype=np.int64)
-    #     if alias_copy_inds is not None:
-    #         fields['alias_copy_inds'] = SequentialArrayField(alias_copy_inds, dtype=np.int64)
-    #
-    #     return Instance(fields)
 
 
 if __name__ == '__main__':

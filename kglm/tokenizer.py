@@ -151,7 +151,12 @@ class Tokenizer(ABC):
         if to != 'torch' or not pad:
             raise NotImplementedError(f"Can not run this function for pad={pad}, to={to}")
 
-        max_depth = max(max(len(x) for x in instance) for instance in texts)
+        try:
+            max_depth = max(max(len(x) for x in instance) for instance in texts)
+        except ValueError as e:
+            print('potato')
+            raise e
+
         outputs = []
         for instance in texts:
             outputs.append(self.batch_convert(instance, pad=True, to='torch', max_len=max_depth))

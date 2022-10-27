@@ -10,7 +10,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from collections import deque
 from dataclasses import fields
-from typing import List, Tuple, Iterable, Dict, Deque, Optional, Union
+from typing import List, Tuple, Iterable, Dict, Deque, Optional, Callable
 
 # Local Imports
 try:
@@ -215,7 +215,7 @@ class FancyIterator:
         return outputs
 
     def __call__(self,
-                 instances: Iterable[Instance],
+                 instance_iterator: Callable,
                  alias_database: AliasDatabase,
                  num_epochs: int = 1,
                  starting_epoch: int = 0,
@@ -240,7 +240,7 @@ class FancyIterator:
 
         # In order to ensure that we are (almost) constantly streaming data to the model we
         # need to have all of the instances in memory ($$$)
-        instance_list = list(instances)
+        instance_list = list(instance_iterator())
 
         if (self._batch_size > len(instance_list)) and self._truncate:
             raise ConfigurationError('FancyIterator will not return any data when the batch size '

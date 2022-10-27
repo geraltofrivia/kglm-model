@@ -154,8 +154,8 @@ def main(
     enforce_reproducibility()
 
     # Lets try and ge the datareader to work        # TODO: do we need the alias database loaded twice?
-    train_data = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')
-    valid_data = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')  # , mode='discriminative')
+    kglm_reader = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')
+    # valid_data = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')  # , mode='discriminative')
 
     # Pull the vocabs
     tokens_vocab = Vocab.load(LOC.vocab / 'tokens.txt')
@@ -214,10 +214,12 @@ def main(
     )
     # We now use the FancyIterator objects' __call__ function and throw actual data to it. But we don't do it just now.
     # We create a partial so`train_data_partial()` will execute `train_di.__call__` with the right params given to it.
-    train_data_partial = partial(train_di, train_data.load(LOC.lw2 / 'train.jsonl'),
-                                 alias_database=train_data.alias_database)
-    valid_data_partial = partial(valid_di, valid_data.load(LOC.lw2 / 'valid.jsonl'),
-                                 alias_database=valid_data.alias_database)
+    train_data_partial = partial(train_di, partial(kglm_reader.load, LOC.lw2 / 'train.jsonl'),
+                                 # kglm_reader.load(LOC.lw2 / 'train.jsonl'),
+                                 alias_database=kglm_reader.alias_database)
+    valid_data_partial = partial(valid_di, partial(kglm_reader.load, LOC.lw2 / 'valid.jsonl'),
+                                 # kglm_reader.load(LOC.lw2 / 'valid.jsonl'),
+                                 alias_database=kglm_reader.alias_database)
 
     # Make the model
     model_params = {
