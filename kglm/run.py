@@ -209,7 +209,8 @@ def main(
             "relations",
             "shortlist_inds",
             "alias_copy_inds"
-        ]
+        ],
+        truncate=False
     )
     # We now use the FancyIterator objects' __call__ function and throw actual data to it. But we don't do it just now.
     # We create a partial so`train_data_partial()` will execute `train_di.__call__` with the right params given to it.
@@ -237,7 +238,7 @@ def main(
     # text = "The colleague sitting next to me is [MASK]"
 
     # Initialize KGLM
-    model = Kglm(**model_params)
+    model = Kglm(**model_params).to(device)
     print("Model params: ", sum([param.nelement() for param in model.parameters()]))
 
     # Make optimizer
@@ -254,9 +255,10 @@ def main(
 
     # Init the metrics
     metric_classes = [Perplexity, PenalizedPerplexity]
-    train_eval = Evaluator(metric_classes=metric_classes)
+    train_eval = Evaluator(metric_classes=metric_classes, device=device)
     valid_eval = Evaluator(
-        metric_classes=metric_classes, predict_fn=model.forward, data_loader_callable=valid_data_partial
+        metric_classes=metric_classes, predict_fn=model.forward, data_loader_callable=valid_data_partial,
+        device=device
     )
 
     # Save directory shenanigans
