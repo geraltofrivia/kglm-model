@@ -65,6 +65,9 @@ class Instance:
     def asdict(self) -> dict:
         return asdict(self)
 
+    def isempty(self) -> bool:
+        return len(self.source) == 0
+
 
 if __name__ == '__main__':
     print(Instance.empty())

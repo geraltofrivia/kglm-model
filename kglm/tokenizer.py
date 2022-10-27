@@ -80,7 +80,7 @@ class Tokenizer(ABC):
         vocabularized = self.batch_vocabularize(tokenized)
 
         # Get pad lengths. Warning: may not be used
-        biggest_seq = max(len(instance) for instance in vocabularized)
+        biggest_seq = max(len(instance) if len(instance) > 0 else 0 for instance in vocabularized)
 
         if to == 'torch':
             # We WILL have to pad
@@ -111,7 +111,7 @@ class Tokenizer(ABC):
 
             padding_id = self.vocab[DEFAULT_PAD_TOKEN]
 
-            # Trim things to max lenpotatopotato
+            # Trim things to max len
             if max_len > 0:
                 biggest_seq = min(biggest_seq, max_len)
 
@@ -151,22 +151,21 @@ class Tokenizer(ABC):
         if to != 'torch' or not pad:
             raise NotImplementedError(f"Can not run this function for pad={pad}, to={to}")
 
-        try:
-            max_depth = max(max(len(x) for x in instance) for instance in texts)
-        except ValueError as e:
-            print('potato')
-            raise e
+        max_depth = max([max([len(x) for x in instance]) if len(instance) > 0 else 0 for instance in texts])
+        max_length = max(len(instance) if len(instance) > 0 else 0 for instance in texts)
 
         outputs = []
         for instance in texts:
-            outputs.append(self.batch_convert(instance, pad=True, to='torch', max_len=max_depth))
+            if len(instance) == 0:
+                outputs.append(torch.zeros(max_length, max_depth) + self.vocab[DEFAULT_PAD_TOKEN])
+            else:
+                outputs.append(self.batch_convert(instance, pad=True, to='torch', max_len=max_depth))
 
         try:
             return torch.stack(outputs, dim=0)
         except RuntimeError as e:
             # This is probably happening because one of the elements in outputs is not the right size.
             # Let's see if we can't force it
-            max_length = max(len(instance) for instance in texts)
 
             for i, tensor in enumerate(outputs):
                 if tensor.shape[0] != max_length:
