@@ -157,7 +157,7 @@ class Tokenizer(ABC):
         outputs = []
         for instance in texts:
             if len(instance) == 0:
-                outputs.append(torch.zeros(max_length, max_depth) + self.vocab[DEFAULT_PAD_TOKEN])
+                outputs.append(torch.zeros(max_length, max_depth, dtype=torch.int64) + self.vocab[DEFAULT_PAD_TOKEN])
             else:
                 outputs.append(self.batch_convert(instance, pad=True, to='torch', max_len=max_depth))
 
