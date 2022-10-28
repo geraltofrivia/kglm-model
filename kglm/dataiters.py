@@ -161,7 +161,7 @@ class FancyIterator:
         # Fix Parents. [60, 70, 10]
         if batch[0].parent_ids is not None:
             parents_values = [instance.parent_ids for instance in batch]
-            parents_words = self.ent_tokenizer.batch_convert_3d(parents_values, pad=True, to='torch')
+            parents_words = self.ent_tokenizer.batch_convert_3d(parents_values, pad=True, to='torch').type(torch.int64)
             outputs['parent_ids']: Dict[str, torch.Tensor] = {'entity_ids': parents_words}
 
         # Fix shortlists (like entities)
