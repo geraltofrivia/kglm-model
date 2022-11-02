@@ -22,7 +22,7 @@ class Instance:
 
     entities: List[str]                     # entity ID for every token
     relations: List[str]                    # relation ID for every token
-    raw_entities: List[str]                 # same as entities, having entity info or pad tokens
+    raw_entities: List[List[str]]           # same as entities, having entity info or pad tokens
     parent_ids: List[List[str]]             # for every token, have a list of all parent entity (dynamic graph in KGLM)
 
     shortlist: List[str]                    # list of entities (all entities? je sais pas)

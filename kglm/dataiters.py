@@ -211,7 +211,7 @@ class FancyIterator:
         #         instance.__setattr__(field, processed[i])
 
         # TODO: take care of devices etc
-
+        outputs = {key:value for key, value in outputs.items() if value is not None}
         return outputs
 
     def __call__(self,
@@ -334,13 +334,17 @@ class FancyIterator:
             # Obtain splits derived from sequence fields.
             for key in self._splitting_keys:
                 source_field = instance[key]
-                split_field = source_field[start:end]
-                chunk_fields[key] = split_field
+                if instance[key] is not None:
+                    split_field = source_field[start:end]
+                    chunk_fields[key] = split_field
+                else:
+                    chunk_fields[key] = source_field
             chunks.append(chunk_fields)
 
         # Time to convert these chunks back to instances
 
         relevant_fields = [field.name for field in fields(Instance)]
+        # TODO: Instance should handle the discriminative case where target and alias_copy_inds do not exist at all
         for i, chunk in enumerate(chunks):
             inst = Instance(
                 source=chunk['source'],
