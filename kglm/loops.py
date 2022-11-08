@@ -86,7 +86,6 @@ def training_loop(
 
             # calculate metrics and note down loss
             per_epoch_loss.append(loss.item())
-        per_epoch_train_metrics = model.get_metric(reset=True)
 
         # Evaluating the model.
         model.eval()
@@ -120,7 +119,12 @@ def training_loop(
                  train_metrics=train_metrics, valid_metrics=valid_metrics, save_config=save_config, save_suffix=f"_{e}")
 
         print(f"\nEpoch: {e:5d}" +
-              f"\n\tLoss: {train_loss[-1]:.8f}")
+              f"\n\tLoss: {train_loss[-1]:.8f}" +
+              f"\nTrain Metrics: " +
+              '\n'.join(f"\n\t{k}: {v:.8f}" for k, v in Evaluator.get_last(train_metrics).items()) +
+              (f"\nValid Metrics: " +
+               '\n'.join(f"\n\t{k}: {v:.8f}" for k, v in valid_evaluator.report())) if valid_evaluator else ''
+              )
 
 
 def save(
