@@ -123,7 +123,7 @@ def training_loop(
               f"\nTrain Metrics: " +
               '\n'.join(f"\n\t{k}: {v:.8f}" for k, v in Evaluator.get_last(train_metrics).items()) +
               (f"\nValid Metrics: " +
-               '\n'.join(f"\n\t{k}: {v:.8f}" for k, v in valid_evaluator.report())) if valid_evaluator else ''
+               '\n'.join(f"\n\t{k}: {v:.8f}" for k, v in valid_evaluator.report().items())) if valid_evaluator else ''
               )
 
 
