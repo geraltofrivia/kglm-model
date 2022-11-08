@@ -15,9 +15,7 @@ import random
 import numpy as np
 from functools import partial
 from mytorch.utils.goodies import FancyDict, get_commit_hash, mt_save_dir
-from torch.nn import Embedding, LSTM
 from typing import Any, Optional, Type
-
 
 # Local imports
 from tokenizer import SpacyTokenizer, SimpleTokenizer
@@ -26,6 +24,7 @@ from dataiters import FancyIterator
 from config import LOCATIONS as LOC, DEFAULTS, KNOWN_OPTIMIZERS as KNOWN_OC, KNOWN_SCHEDULERS, EMBEDDING_DIM as EMBDIM
 from utils.vocab import Vocab
 from models.kglm import Kglm
+from models.kglm_disc import KglmDisc
 from utils.exceptions import BadParameters
 from utils.misc import merge_configs, pull_embeddings_from_disk
 from loops import training_loop
@@ -108,9 +107,11 @@ def make_scheduler(opt, lr_schedule: Optional[str]) -> Optional[Type[torch.optim
               help="We split the document in chunks of this number of words.")
 @click.option("--learning-rate", "-lr", type=float, default=DEFAULTS.trainer.learning_rate,
               help="Learning rate. Defaults to 3e-4")
+@click.option("--mode", type=click.Choice(['generative', 'discriminative'], case_sensitive=False),
+              default='generative', help="Type in exactly 'discriminative' or 'generative'. Defaults to 'generative'.")
 @click.option("--optimizer", "-opt", type=click.Choice(KNOWN_OC, case_sensitive=False),
               default=DEFAULTS.trainer.optimizer_class, help="adam or sgd.")
-@click.option("--lr-scheduler", "-lrs", default='none', type=click.Choice(KNOWN_SCHEDULERS, case_sensitive=False),
+@click.option("--lr-scheduler", "-lrs", default='none', type=click.Choice(KNOWN_SCHEDULERS, case_sensitive=False, ),
               help="Write 'gamma' to decay the lr. constant or none for nothing.")
 @click.option('--use-wandb', '-wb', is_flag=True, default=False,
               help="If True, we report this run to WandB")
@@ -128,6 +129,7 @@ def main(
         optimizer: str,
         lr_scheduler: str,
         save: bool,
+        mode: str,
 
         # WandB stuff
         use_wandb: bool = False,
@@ -153,9 +155,8 @@ def main(
 
     enforce_reproducibility()
 
-    # Lets try and ge the datareader to work        # TODO: do we need the alias database loaded twice?
-    kglm_reader = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')
-    # valid_data = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl')  # , mode='discriminative')
+    # Lets try and ge the datareader to work
+    kglm_reader = EnhancedWikitextKglmReader(alias_database_path=LOC.lw2 / 'alias.pkl', mode=mode)
 
     # Pull the vocabs
     tokens_vocab = Vocab.load(LOC.vocab / 'tokens.txt')
@@ -174,6 +175,14 @@ def main(
     # Now make a dataiter to work with it.
     # Note that these aren't actually functioning datasets. But instead, they are objects which know how to interpret
     # #### raw (or partly preprocessed data) and make it training/eval friendly.
+    dataset_splitting_keys = ["source", "target", "mention_type", "raw_entities", "entities", "parent_ids", "relations",
+                              "shortlist_inds", "alias_copy_inds"] if mode == 'generative' else ["source",
+                                                                                                 "mention_type",
+                                                                                                 "raw_entities",
+                                                                                                 "entities",
+                                                                                                 "parent_ids",
+                                                                                                 "relations",
+                                                                                                 "shortlist_inds"]
     train_di = FancyIterator(
         batch_size=config.batch_size,
         split_size=config.split_size,
@@ -181,17 +190,8 @@ def main(
         rel_tokenizer=rel_tokenizer,
         ent_tokenizer=ent_tokenizer,
         raw_ent_tokenizer=raw_ent_tokenizer,
-        splitting_keys=[
-            "source",
-            "target",
-            "mention_type",
-            "raw_entities",
-            "entities",
-            "parent_ids",
-            "relations",
-            "shortlist_inds",
-            "alias_copy_inds"
-        ])
+        splitting_keys=dataset_splitting_keys
+    )
     valid_di = FancyIterator(
         batch_size=config.batch_size,
         split_size=config.split_size,
@@ -199,17 +199,7 @@ def main(
         rel_tokenizer=rel_tokenizer,
         ent_tokenizer=ent_tokenizer,
         raw_ent_tokenizer=raw_ent_tokenizer,
-        splitting_keys=[
-            "source",
-            "target",
-            "mention_type",
-            "raw_entities",
-            "entities",
-            "parent_ids",
-            "relations",
-            "shortlist_inds",
-            "alias_copy_inds"
-        ],
+        splitting_keys=dataset_splitting_keys,
         truncate=False
     )
     # We now use the FancyIterator objects' __call__ function and throw actual data to it. But we don't do it just now.
@@ -228,8 +218,10 @@ def main(
         "raw_ent_vocab": raw_ent_vocab,
         "tokens_vocab": tokens_vocab,
         "token_embeddings": torch.randn(len(tokens_vocab), EMBDIM.tokens).to(device),
-        "entity_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.entities.txt', ent_vocab.tok_to_id).to(device),
-        "relation_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.relations.txt', rel_vocab.tok_to_id).to(device),
+        "entity_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.entities.txt', ent_vocab.tok_to_id).to(
+            device),
+        "relation_embeddings": pull_embeddings_from_disk(LOC.lw2 / 'embeddings.relations.txt', rel_vocab.tok_to_id).to(
+            device),
         "alias_encoder_config": config.alias_encoder,
         "knowledge_graph_path": str(LOC.lw2 / "knowledge_graph.pkl"),
         "use_shortlist": False,
@@ -237,10 +229,14 @@ def main(
         "num_layers": 3,
         "tie_weights": config.tie_weights
     }
-    # text = "The colleague sitting next to me is [MASK]"
+    if mode == 'generative':
+        model = Kglm(**model_params).to(device)
+    elif mode == 'discriminative':
+        _ = model_params.pop('alias_encoder_config')
+        model = KglmDisc(**model_params).to(device)
+    else:
+        raise BadParameters(f"Unknown mode: `{mode}`")
 
-    # Initialize KGLM
-    model = Kglm(**model_params).to(device)
     print("Model params: ", sum([param.nelement() for param in model.parameters()]))
 
     # Make optimizer
@@ -257,11 +253,11 @@ def main(
 
     # Init the metrics
     metric_classes = [Perplexity, PenalizedPerplexity]
-    train_eval = Evaluator(metric_classes=metric_classes, device=device)
+    train_eval = Evaluator(metric_classes=metric_classes, device=device) if mode == 'generative' else None
     valid_eval = Evaluator(
         metric_classes=metric_classes, predict_fn=model.forward, data_loader_callable=valid_data_partial,
         device=device
-    )
+    ) if mode == 'generative' else None
 
     # Save directory shenanigans
     if save:
@@ -310,13 +306,6 @@ def main(
         flag_wandb=use_wandb,
         epochs_last_run=0  # TODO: change if resume is someday implemented
     )
-
-    # See if the dataset works
-    # for x in di(ds.load(LOC.lw2 / 'train.jsonl'), alias_database=ds.alias_database):
-    # print(x)
-    # # print('potato')
-    # outputs = model(**x)
-    # print('potato')
 
 
 if __name__ == '__main__':

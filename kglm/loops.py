@@ -23,8 +23,8 @@ def training_loop(
         train_dl: Callable,
         device: str,
         epochs: int,
-        train_evaluator: Evaluator,
-        valid_evaluator: Evaluator,
+        train_evaluator: Optional[Evaluator],
+        valid_evaluator: Optional[Evaluator],
         optim: torch.optim,
         scheduler: Optional[Type[torch.optim.lr_scheduler._LRScheduler]],
         clip_grad_norm: float = 0.0,
@@ -59,7 +59,8 @@ def training_loop(
         # Set the model mode to train
         model.train()
 
-        for i, instance in enumerate(tqdm(trn_dataset)):
+        pbar = tqdm(trn_dataset, unit="Instances")
+        for i, instance in enumerate(pbar):
 
             # Reset the gradients
             optim.zero_grad()
@@ -83,12 +84,12 @@ def training_loop(
             optim.step()
 
             # calculate metrics and note down loss
-            train_evaluator.update(instance=instance, outputs=outputs)
+            if train_evaluator: train_evaluator.update(instance=instance, outputs=outputs)
             per_epoch_loss.append(loss.item())
 
         # Evaluating the model.
         model.eval()
-        valid_evaluator.run()
+        if valid_evaluator: valid_evaluator.run()
 
         # If LR scheduler is provided, run it
         if scheduler is not None:
@@ -96,14 +97,13 @@ def training_loop(
 
         # Bookkeeping
         train_loss.append(np.mean(per_epoch_loss))
-        train_metrics = train_evaluator.aggregate_reports(train_metrics, train_evaluator.report())
-        valid_metrics = valid_evaluator.aggregate_reports(valid_metrics, valid_evaluator.report())
+        if train_evaluator: train_metrics = train_evaluator.aggregate_reports(train_metrics, train_evaluator.report())
+        if valid_evaluator: valid_metrics = valid_evaluator.aggregate_reports(valid_metrics, valid_evaluator.report())
         if flag_wandb:
-            wandb.log({
-                'loss': train_loss[-1],
-                'train': train_evaluator.report(),
-                'valid': valid_evaluator.report()
-            })
+            wandb_log = {'loss': train_loss[-1]}
+            if train_evaluator: wandb_log['train']: train_evaluator.report()
+            if valid_evaluator: wandb_log['valid']: valid_evaluator.report()
+            wandb.log()
 
         # Saving Code
         if flag_save:
@@ -129,8 +129,8 @@ def training_loop(
             }, Path(save_dir) / 'torch.save')
             print(f"Model saved on Epoch {e} at {save_dir}.")
 
-        train_evaluator.reset()
-        valid_evaluator.reset()
+        if train_evaluator: train_evaluator.reset()
+        if valid_evaluator: valid_evaluator.reset()
 
         print(f"\nEpoch: {e:5d}" +
               f"\n\tLoss: {train_loss[-1]:.8f}")
