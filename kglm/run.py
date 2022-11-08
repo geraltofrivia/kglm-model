@@ -6,29 +6,30 @@
     [ ] Implement model resuming
 '''
 
-# Global imports
-import git
-import torch
-import wandb
-import click
 import random
-import numpy as np
 from functools import partial
-from mytorch.utils.goodies import FancyDict, get_commit_hash, mt_save_dir
+from pprint import pprint
 from typing import Any, Optional, Type
 
-# Local imports
-from tokenizer import SpacyTokenizer, SimpleTokenizer
-from datareaders import EnhancedWikitextKglmReader
-from dataiters import FancyIterator
+import click
+import numpy as np
+# Global imports
+import torch
+import wandb
+from mytorch.utils.goodies import FancyDict, get_commit_hash, mt_save_dir
+
 from config import LOCATIONS as LOC, DEFAULTS, KNOWN_OPTIMIZERS as KNOWN_OC, KNOWN_SCHEDULERS, EMBEDDING_DIM as EMBDIM
-from utils.vocab import Vocab
+from dataiters import FancyIterator
+from datareaders import EnhancedWikitextKglmReader
+from eval import Evaluator
+from loops import training_loop
 from models.kglm import Kglm
 from models.kglm_disc import KglmDisc
+# Local imports
+from tokenizer import SpacyTokenizer, SimpleTokenizer
 from utils.exceptions import BadParameters
 from utils.misc import merge_configs, pull_embeddings_from_disk, serialize_config
-from loops import training_loop
-from eval import Evaluator
+from utils.vocab import Vocab
 
 
 def enforce_reproducibility(random_seed=13370, numpy_seed=1337, pytorch_seed=133):
@@ -283,7 +284,7 @@ def main(
                    id=config.wandbid, resume="allow")
         wandb.config.update(config, allow_val_change=True)
 
-    print(config)
+    pprint(config)
 
     # Create vars and make a training loop
     training_loop(
