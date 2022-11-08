@@ -4,13 +4,14 @@
 
     This is 2022. Keep up.
 """
-import torch
 import random
-import numpy as np
-from tqdm.auto import tqdm
 from collections import deque
 from dataclasses import fields
 from typing import List, Tuple, Iterable, Dict, Deque, Optional, Callable
+
+import numpy as np
+import torch
+from tqdm.auto import tqdm
 
 # Local Imports
 try:
@@ -261,7 +262,7 @@ class FancyIterator:
             queue_lengths = np.zeros(self._batch_size, dtype=int)
 
             # # TODO: REMOVE THIS SUPER URGENTLY!!!!!
-            # instance_list = instance_list[:50]
+            instance_list = instance_list[:123]
 
             for i, instance in enumerate(tqdm(instance_list,
                                  desc=f"Splitting {len(instance_list)} instances into chunks before batching",

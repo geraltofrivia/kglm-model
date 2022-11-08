@@ -3,22 +3,22 @@
 '''
 
 '''
-from tqdm.auto import trange, tqdm
-import torch.nn
-from typing import Callable, Dict, Optional, Type
-import numpy as np
-from pathlib import Path
-import wandb
 import json
 import pickle
+from pathlib import Path
+from typing import Callable, Dict, Optional, Type
 
+import numpy as np
+import torch.nn
+import wandb
+from tqdm.auto import trange, tqdm
+
+from eval import Evaluator
+from utils.exceptions import FoundNaNs
 # Local imports
 from utils.misc import change_device
-from utils.exceptions import FoundNaNs
-from eval import Evaluator
 
 
-# noinspection PyUnresolvedReferences
 def training_loop(
         model: torch.nn.Module,
         forward_fn: Callable,
@@ -60,7 +60,7 @@ def training_loop(
         # Set the model mode to train
         model.train()
 
-        pbar = tqdm(trn_dataset, unit="Instances")
+        pbar = tqdm(trn_dataset)
         for i, instance in enumerate(pbar):
 
             # Reset the gradients
@@ -98,7 +98,7 @@ def training_loop(
 
         # Bookkeeping
         train_loss.append(np.mean(per_epoch_loss))
-        train_metrics = Evaluator.aggregate_reports(train_metrics, train_evaluator.report(reset=True))
+        train_metrics = Evaluator.aggregate_reports(train_metrics, model.get_metrics(reset=True))
         valid_metrics = valid_evaluator.metrics if valid_evaluator else {}
 
         if flag_wandb:

@@ -1,5 +1,5 @@
 torch
-git+git://github.com/rloganiv/allennlp.git@pytorch-grad-clip
+git+https://github.com/rloganiv/allennlp.git@pytorch-grad-clip
 overrides
 numpy
 my-torch
