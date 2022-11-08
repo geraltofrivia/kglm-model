@@ -262,7 +262,7 @@ class FancyIterator:
             queue_lengths = np.zeros(self._batch_size, dtype=int)
 
             # # TODO: REMOVE THIS SUPER URGENTLY!!!!!
-            instance_list = instance_list[:123]
+            # instance_list = instance_list[:123]
 
             for i, instance in enumerate(tqdm(instance_list,
                                  desc=f"Splitting {len(instance_list)} instances into chunks before batching",
