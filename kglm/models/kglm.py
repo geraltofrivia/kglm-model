@@ -1163,6 +1163,7 @@ class Kglm(Module):
         out['relation_ppl'] = self._relation_ppl.get_metric(reset)
         return out
 
+
 if __name__ == '__main__':
 
     from training.trainer import TrainerPieces

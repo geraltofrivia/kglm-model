@@ -26,9 +26,9 @@ from utils.vocab import Vocab
 from models.kglm import Kglm
 from models.kglm_disc import KglmDisc
 from utils.exceptions import BadParameters
-from utils.misc import merge_configs, pull_embeddings_from_disk
+from utils.misc import merge_configs, pull_embeddings_from_disk, serialize_config
 from loops import training_loop
-from eval import PenalizedPerplexity, Perplexity, Evaluator
+from eval import Evaluator
 
 
 def enforce_reproducibility(random_seed=13370, numpy_seed=1337, pytorch_seed=133):
@@ -252,16 +252,11 @@ def main(
     scheduler: Optional[Any] = make_scheduler(opt, lr_schedule=config.trainer.scheduler_class)
 
     # Init the metrics
-    metric_classes = [Perplexity, PenalizedPerplexity]
-    train_eval = Evaluator(metric_classes=metric_classes, device=device) if mode == 'generative' else None
-    valid_eval = Evaluator(
-        metric_classes=metric_classes, predict_fn=model.forward, data_loader_callable=valid_data_partial,
-        device=device
-    ) if mode == 'generative' else None
+    valid_eval = Evaluator(predict_fn=model.forward, model=model, data_loader_callable=valid_data_partial, device=device) if mode == 'generative' else None
 
     # Save directory shenanigans
     if save:
-        savedir = LOC.models
+        savedir = LOC.models / mode
         savedir.mkdir(parents=True, exist_ok=True)
 
         # Resume block here
@@ -288,19 +283,20 @@ def main(
                    id=config.wandbid, resume="allow")
         wandb.config.update(config, allow_val_change=True)
 
+    print(config)
+
     # Create vars and make a training loop
     training_loop(
         model=model,
         forward_fn=model,
         train_dl=train_data_partial,
-        train_evaluator=train_eval,
         valid_evaluator=valid_eval,
         device=config.device,
         epochs=config.trainer.epochs,
         optim=opt,
         flag_save=save,
         save_dir=savedir,
-        save_config=save_config,
+        save_config=serialize_config(save_config),
         save_every=config.trainer.save_every,
         scheduler=scheduler,
         clip_grad_norm=config.trainer.clip_gradients_norm,

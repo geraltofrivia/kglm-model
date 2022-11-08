@@ -58,25 +58,32 @@ class PreComputedMetric(Metric, ABC):
         pass
 
 
-class Perplexity(PreComputedMetric):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.name = 'log_perplexity'
-
-
-class PenalizedPerplexity(PreComputedMetric):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.name = 'penalized_log_perplexity'
+# class Perplexity(PreComputedMetric):
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.name = 'log_perplexity'
+#
+#
+# class PenalizedPerplexity(PreComputedMetric):
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.name = 'penalized_log_perplexity'
 
 
 class Evaluator:
+    """
+        Actual metric computation is done within the model.
+        TODO: move those things here as well later?
+
+        This just runs the eval dataset over the model and asks for the metrics at the end.
+        And stores them across epochs
+    """
 
     def __init__(
             self,
-            metric_classes: List[Callable],
+            model: torch.nn.Module,
             predict_fn: Callable = None,
             data_loader_callable: Callable = None,
             device: Union[str, torch.device] = None,
@@ -85,54 +92,24 @@ class Evaluator:
         TODO: this is a work in progress. keep fleshing it out
 
         If you provide a predict function, and dataset, we can run a whole set of metrics on it by calling <>.run()
-        If not, you can still just update the metrics by providing <>.update(instance, outputs)
+        If not, you can still just update the metrics by providing <>.update(model.get_metrics())
             where instance and outputs are dicts as in the loop.
         """
 
         self._device = device
         self._predict_fn = predict_fn
         self._data_loader_callable = data_loader_callable
+        self._model = model
 
         # Metrics val contains metric's classes. We need to initialize them to get objects
         self.metrics = {}
-        for metric_cls in metric_classes:
-            metric_obj = metric_cls()
-            self.metrics[metric_obj.name] = metric_obj
-
-        self.results = {}
-        self._computed_results: bool = False
-
-    def reset(self):
-        """ Reset all metrics inside """
-
-        for metric in self.metrics.values():
-            metric.reset()
-
-        self.results = {}
-        self._computed_results: bool = False
-
-    def update(self, instance: dict, outputs: dict):
-        """ For now, ignore instance, just take some keys from outputs"""
-
-        # TODO: automate this somehow. for now, its all hardcoded
-        known_keys = ['log_perplexity', 'penalized_log_perplexity']
-        for key in known_keys:
-            val = outputs[key]
-            self.metrics[key].log(val)
+        # for metric_cls in metric_classes:
+        #     metric_obj = metric_cls()
+        #     self.metrics[metric_obj.name] = metric_obj
 
     def report(self):
-        """ Combine the reports of metrics inside """
-        if self._computed_results:
-            return self.results
-
-        else:
-            for metric_nm, metric_obj in self.metrics.items():
-
-                val = metric_obj.aggregate()
-                self.results[metric_nm] = val
-
-            self._computed_results = True
-            return self.results
+        """ Return the last values in self.metrics """
+        return self.get_last(self.metrics)
 
     def run(self):
 
@@ -149,8 +126,8 @@ class Evaluator:
 
                 instance = change_device(instance, self._device)
                 outputs = self._predict_fn(**instance)
-                self.update(instance, outputs)
 
+        self.aggregate_reports(self.metrics, self._model.get_metrics(reset=True))
         return self.report()
 
     @staticmethod
@@ -164,3 +141,15 @@ class Evaluator:
                 aggregate[metric_name].append(metric_scalar)
 
         return aggregate
+
+    @staticmethod
+    def get_last(aggregate: Dict[str, list]) -> Dict[str, Union[float, int]]:
+        """
+            From a dict of lists, get the last item corresponding to every dict.
+            E.g.
+                {
+                    'acc': [0.2, 0.5],
+                    'p':[0.8, 0.9]
+                } -> {'acc': 0.5, 'p': 0.9}
+        """
+        return {k: v[-1] for k, v in aggregate.items()}

@@ -1,9 +1,10 @@
 """ the bottom tier of random assortment of things. DO NOT IMPORT ANY LOCAL THING HERE.
 Avoid cyclic dependencies for a healthier and longer life. """
-from typing import Union, List, Tuple, Dict
+from typing import Union, List, Tuple, Dict, Type
 from pathlib import Path
 from mytorch.utils.goodies import FancyDict
 import torch
+import json
 
 
 def change_device(instance: dict, device: Union[str, torch.device]) -> dict:
@@ -91,6 +92,34 @@ def pull_embeddings_from_disk(p: Path, tok2id: Dict[str, int]) -> torch.Tensor:
     # vectors[unknown_indices] = unknown_vectors
 
     return vectors
+
+
+def serialize_config(config: dict):
+    """ Safely handle things """
+    try:
+        # First see if you need to make any change
+        _ = json.dumps(config)
+        return config
+    except TypeError as e:
+        serialized = {}
+        for k, v in config.items():
+            try:
+                serialized[k] = json.dumps(v)
+            except TypeError:
+                if isinstance(v, Path):
+                    serialized[k] = json.dumps(str(v))
+                elif isinstance(v, torch.Tensor):
+                    try:
+                        serialized[k] = json.dumps(v.item())
+                    except ValueError:
+                        # This is not a 1D tensor, its an array. Too bad.
+                        serialized[k] = json.dumps(v.cpu().tolist())
+                else:
+                    raise ValueError(f"Unknown type of object - {type(v)}. If you think its serializable, "
+                                     f"handle it in code here manually.")
+        return serialized
+
+
 
 
 

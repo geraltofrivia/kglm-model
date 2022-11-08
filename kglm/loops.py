@@ -25,7 +25,6 @@ def training_loop(
         train_dl: Callable,
         device: str,
         epochs: int,
-        train_evaluator: Optional[Evaluator],
         valid_evaluator: Optional[Evaluator],
         optim: torch.optim,
         scheduler: Optional[Type[torch.optim.lr_scheduler._LRScheduler]],
@@ -48,7 +47,6 @@ def training_loop(
 
     train_loss = []
     train_metrics: Dict = {}
-    valid_metrics: Dict = {}
 
     # Epoch Level
     for e in trange(epochs_last_run + 1, epochs + epochs_last_run + 1):
@@ -87,12 +85,13 @@ def training_loop(
             optim.step()
 
             # calculate metrics and note down loss
-            if train_evaluator: train_evaluator.update(instance=instance, outputs=outputs)
             per_epoch_loss.append(loss.item())
+        per_epoch_train_metrics = model.get_metric(reset=True)
 
         # Evaluating the model.
         model.eval()
-        if valid_evaluator: valid_evaluator.run()
+        if valid_evaluator:
+            valid_evaluator.run()
 
         # If LR scheduler is provided, run it
         if scheduler is not None:
@@ -100,26 +99,25 @@ def training_loop(
 
         # Bookkeeping
         train_loss.append(np.mean(per_epoch_loss))
-        if train_evaluator: train_metrics = train_evaluator.aggregate_reports(train_metrics, train_evaluator.report())
-        if valid_evaluator: valid_metrics = valid_evaluator.aggregate_reports(valid_metrics, valid_evaluator.report())
+        train_metrics = Evaluator.aggregate_reports(train_metrics, train_evaluator.report(reset=True))
+        valid_metrics = valid_evaluator.metrics if valid_evaluator else {}
+
         if flag_wandb:
             wandb_log = {'loss': train_loss[-1]}
-            if train_evaluator: wandb_log['train']: train_evaluator.report()
-            if valid_evaluator: wandb_log['valid']: valid_evaluator.report()
+            wandb_log['train']: Evaluator.get_last(train_metrics)
+            if valid_evaluator:
+                wandb_log['valid']: valid_evaluator.report()
             wandb.log()
 
         # Saving Code 1 - every epoch
         if flag_save:
-            save(save_dir=save_dir, e=e, model=model, opt=opt, scheduler=scheduler, train_loss=train_loss,
-                 train_metrics=train_metrics, valid_metrics=valid_metrics,save_config=save_config)
+            save(save_dir=save_dir, e=e, model=model, opt=optim, scheduler=scheduler, train_loss=train_loss,
+                 train_metrics=train_metrics, valid_metrics=valid_metrics, save_config=save_config)
 
         # Saving Code 2 - every N epochs
         if flag_save and save_every > 0 and e > 0 and e % save_every == 0:
-            save(save_dir=save_dir, e=e, model=model, opt=opt, scheduler=scheduler, train_loss=train_loss,
-                 train_metrics=train_metrics, valid_metrics=valid_metrics,save_config=save_config, save_suffix=f"_{e}")
-
-        if train_evaluator: train_evaluator.reset()
-        if valid_evaluator: valid_evaluator.reset()
+            save(save_dir=save_dir, e=e, model=model, opt=optim, scheduler=scheduler, train_loss=train_loss,
+                 train_metrics=train_metrics, valid_metrics=valid_metrics, save_config=save_config, save_suffix=f"_{e}")
 
         print(f"\nEpoch: {e:5d}" +
               f"\n\tLoss: {train_loss[-1]:.8f}")
