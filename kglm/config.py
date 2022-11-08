@@ -62,6 +62,7 @@ DEFAULTS = FancyDict(**{
             'none': {},
             'constant': {}
         }),
+        'save_every': 100,
     }),
     'alias_encoder': FancyDict(**{
         'input_size': EMBEDDING_DIM.tokens,

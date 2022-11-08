@@ -9,6 +9,8 @@ from typing import Callable, Dict, Optional, Type
 import numpy as np
 from pathlib import Path
 import wandb
+import json
+import pickle
 
 # Local imports
 from utils.misc import change_device
@@ -33,6 +35,7 @@ def training_loop(
         flag_save: bool = False,
         save_config: Dict = None,
         save_dir: Optional[Path] = None,
+        save_every: int = -1,
 
         # WandB Logging Stuff
         flag_wandb: bool = False,
@@ -105,29 +108,15 @@ def training_loop(
             if valid_evaluator: wandb_log['valid']: valid_evaluator.report()
             wandb.log()
 
-        # Saving Code
+        # Saving Code 1 - every epoch
         if flag_save:
+            save(save_dir=save_dir, e=e, model=model, opt=opt, scheduler=scheduler, train_loss=train_loss,
+                 train_metrics=train_metrics, valid_metrics=valid_metrics,save_config=save_config)
 
-            # Config
-            with (save_dir / 'config.json').open('w+', encoding='utf8') as f:
-                json.dump({**save_config, **{'epochs_last_run': e}}, f)
-
-            # Traces
-            with (save_dir / 'traces.pkl').open('wb+') as f:
-                pickle.dump({
-                    'train_metrics': train_metrics,
-                    'valid_metrics': valid_metrics,
-                    'train_loss': train_loss
-                }, f)
-
-            # Model
-            torch.save({
-                'epochs_last_run': e,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': opt.state_dict(),
-                'scheduler_state_dict': scheduler.state_dict() if scheduler else None,
-            }, Path(save_dir) / 'torch.save')
-            print(f"Model saved on Epoch {e} at {save_dir}.")
+        # Saving Code 2 - every N epochs
+        if flag_save and save_every > 0 and e > 0 and e % save_every == 0:
+            save(save_dir=save_dir, e=e, model=model, opt=opt, scheduler=scheduler, train_loss=train_loss,
+                 train_metrics=train_metrics, valid_metrics=valid_metrics,save_config=save_config, save_suffix=f"_{e}")
 
         if train_evaluator: train_evaluator.reset()
         if valid_evaluator: valid_evaluator.reset()
@@ -135,3 +124,37 @@ def training_loop(
         print(f"\nEpoch: {e:5d}" +
               f"\n\tLoss: {train_loss[-1]:.8f}")
 
+
+def save(
+        save_dir: Path,
+        e: int,
+        model,
+        opt,
+        scheduler,
+        train_loss,
+        train_metrics,
+        valid_metrics,
+        save_config,
+        save_suffix: Optional[str] = '',
+):
+    """Does the actual saving"""
+    # Config
+    with (save_dir / f'config{save_suffix}.json').open('w+', encoding='utf8') as f:
+        json.dump({**save_config, **{'epochs_last_run': e}}, f)
+
+    # Traces
+    with (save_dir / f'traces{save_suffix}.pkl').open('wb+') as f:
+        pickle.dump({
+            'train_metrics': train_metrics,
+            'valid_metrics': valid_metrics,
+            'train_loss': train_loss
+        }, f)
+
+    # Model
+    torch.save({
+        'epochs_last_run': e,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': opt.state_dict(),
+        'scheduler_state_dict': scheduler.state_dict() if scheduler else None,
+    }, Path(save_dir) / f'torch{save_suffix}.save')
+    print(f"Model saved on Epoch {e} at {save_dir}.")

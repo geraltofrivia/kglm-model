@@ -301,6 +301,7 @@ def main(
         flag_save=save,
         save_dir=savedir,
         save_config=save_config,
+        save_every=config.trainer.save_every,
         scheduler=scheduler,
         clip_grad_norm=config.trainer.clip_gradients_norm,
         flag_wandb=use_wandb,

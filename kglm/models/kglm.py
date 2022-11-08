@@ -526,11 +526,11 @@ class Kglm(Module):
                                                     shortlist,
                                                     target_mask)
         else:
-            new_entity_loss = self._new_entity_loss(encoded_head + encoded_relation,
-                                                    entity_ids,
-                                                    entity_ids,
-                                                    None,
-                                                    target_mask)
+            new_entity_loss = self._new_entity_loss(encoded=encoded_head + encoded_relation,
+                                                    target_inds=entity_ids,
+                                                    entity_ids=entity_ids,
+                                                    shortlist=None,
+                                                    target_mask=target_mask)
 
         self._avg_new_entity_loss(float(new_entity_loss))
         logger.debug('new entity loss: %0.4f', new_entity_loss)
@@ -817,7 +817,7 @@ class Kglm(Module):
                          encoded: torch.Tensor,
                          target_inds: torch.Tensor,
                          entity_ids: torch.Tensor,
-                         shortlist: torch.Tensor,
+                         shortlist: Optional[torch.Tensor],
                          target_mask: torch.Tensor) -> torch.Tensor:
         """
         Parameters
@@ -834,6 +834,7 @@ class Kglm(Module):
             log_probs = F.log_softmax(logits, dim=-1)
         target_log_probs = torch.gather(log_probs, -1, target_inds.unsqueeze(-1)).squeeze(-1)
         target_log_probs = target_log_probs * target_mask.float()
+
         # Also don't predict on non-mentions
         mentions = ~entity_ids.eq(0)
         target_log_probs = target_log_probs * mentions.float()
